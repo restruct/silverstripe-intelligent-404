@@ -38,7 +38,7 @@ By default the module will also redirect is either 1 exact match or one potentia
 You can change this by setting `redirect_on_single_match: false`.
 
 ```yml
-Axllent\Intelligent404\Intelligent404:
+Restruct\Silverstripe\Intelligent404\Intelligent404:
   allow_in_dev_mode: true           # allow this to work in dev mode (default false)
   redirect_on_single_match: false   # do not auto-redirect if one exact match is found (default true)
 ```
@@ -48,7 +48,7 @@ Axllent\Intelligent404\Intelligent404:
 It is possible to add other DataObjects to the Intelligent-404 matching (such as a product database), provided that the DataObject has a `Link()` function. To add your own DataObjects, create a yml config (eg: `mysite/_config/intelligent404.yml`) with the following syntax:
 
 ```yml
-Axllent\Intelligent404\Intelligent404:
+Restruct\Silverstripe\Intelligent404\Intelligent404:
   data_objects:
     \Product:                   # must include the trailing \ for namespacing
       group: Products           # optional group to include the results list into (default 'Pages')

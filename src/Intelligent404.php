@@ -76,7 +76,7 @@ class Intelligent404 extends Extension
 
         if (
             !Director::isDev() ||
-            Config::inst()->get('Axllent\\Intelligent404\\Intelligent404', 'allow_in_dev_mode')
+            Config::inst()->get('Restruct\\Silverstripe\\Intelligent404\\Intelligent404', 'allow_in_dev_mode')
         ) {
             $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', $_SERVER['REQUEST_URI'], $rawString);
 
@@ -89,7 +89,7 @@ class Intelligent404 extends Extension
                 $possible_matches = [];
                 $results_list = [];
 
-                $data_objects = Config::inst()->get('Axllent\\Intelligent404\\Intelligent404', 'data_objects');
+                $data_objects = Config::inst()->get('Restruct\\Silverstripe\\Intelligent404\\Intelligent404', 'data_objects');
 
                 if (!$data_objects || !is_array($data_objects)) {
                     return;
@@ -145,7 +145,7 @@ class Intelligent404 extends Extension
                 $exact_count = count($exact_matches);
                 $possible_count = count($possible_matches);
 
-                $redirect_on_single_match = Config::inst()->get('Axllent\\Intelligent404\\Intelligent404', 'redirect_on_single_match');
+                $redirect_on_single_match = Config::inst()->get('Restruct\\Silverstripe\\Intelligent404\\Intelligent404', 'redirect_on_single_match');
 
                 if ($exact_count == 1 && $redirect_on_single_match) {
                     return $this->RedirectToPage(array_shift($exact_matches));
