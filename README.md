@@ -1,6 +1,6 @@
 # Intelligent 404 Redirector for SilverStripe
 
-### This module has now been archived as it is no longer actively maintained.
+### Forked here because the [original module](https://github.com/axllent/silverstripe-intelligent-404) is no longer actively maintained.
 
 An extension to add additional functionality to the existing 404 ErrorPage.
 If a 404 page is called, it tries to guess the intended page by matching up the
@@ -20,16 +20,6 @@ to the similar page.
 4. Else if more than 1 exact or similar page is found, a regular 404 page is shown and the list of
 possible options is shown (ie: "Were you looking for one of the following pages?") directly beneath it.
 5. Else a regular 404 page is shown.
-
-## Requirements
-* SilverStripe 4
-
-For SilverStripe 3, please refer to the [SilverStripe3 branch](https://github.com/axllent/silverstripe-intelligent-404/tree/silverstripe3).
-
-## Installation
-```bash
-composer require axllent/silverstripe-intelligent-404
-```
 
 ## Usage
 Please see [Configuration.md](docs/en/Configuration.md) for configuration options and documentation.
