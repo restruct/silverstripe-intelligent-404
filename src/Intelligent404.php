@@ -1,6 +1,6 @@
 <?php
 
-namespace Axllent\Intelligent404;
+namespace Restruct\Silverstripe\Intelligent404;
 
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPResponse_Exception;
