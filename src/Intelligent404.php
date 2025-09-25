@@ -11,6 +11,7 @@ use SilverStripe\Core\Extension;
 use SilverStripe\ErrorPage\ErrorPage;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
+use SilverStripe\ORM\FieldType\DBHTMLVarchar;
 
 /**
  * SilverStripe Intelligent 404
@@ -22,13 +23,14 @@ use SilverStripe\ORM\DataList;
  * It also uses soundex to match similar sounding page links to find alternatives.
  */
 
-class Intelligent404 extends Extension
+class Intelligent404
+    extends Extension
 {
     /**
      * @config
      * allow this to work in dev mode
      */
-    private static $allow_in_dev_mode = false;
+    private static $allow_in_dev_mode = true;
 
     /**
      * @config
@@ -56,8 +58,7 @@ class Intelligent404 extends Extension
 
     public function onAfterInit()
     {
-        $error_code = $this->owner->failover->ErrorCode ? $this->owner->failover->ErrorCode : 404;
-
+        $error_code = $this->owner->failover->ErrorCode ?: 404;
         if ($error_code != 404) {
             return; // we only deal with 404
         }
@@ -65,19 +66,13 @@ class Intelligent404 extends Extension
         // Make sure the SiteTree's 404 page isn't being called
         // (via `/dev/build`) to generate `assets/error-404.html`
         $request = !(empty($_SERVER['REQUEST_URI'])) ? $_SERVER['REQUEST_URI'] : false;
-        if (
-            $request &&
-            $error_page = ErrorPage::get()->filter('ErrorCode', $error_code)->first()
-        ) {
+        if ( $request && $error_page = ErrorPage::get()->filter('ErrorCode', $error_code)->first() ) {
             if ($error_page->Link() == $request) {
                 return;
             }
         }
 
-        if (
-            !Director::isDev() ||
-            Config::inst()->get('Restruct\\Silverstripe\\Intelligent404\\Intelligent404', 'allow_in_dev_mode')
-        ) {
+        if ( !Director::isDev() || Config::inst()->get(__CLASS__, 'allow_in_dev_mode') ) {
             $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', $_SERVER['REQUEST_URI'], $rawString);
 
             if ($extract) {
@@ -89,8 +84,7 @@ class Intelligent404 extends Extension
                 $possible_matches = [];
                 $results_list = [];
 
-                $data_objects = Config::inst()->get('Restruct\\Silverstripe\\Intelligent404\\Intelligent404', 'data_objects');
-
+                $data_objects = Config::inst()->get(__CLASS__, 'data_objects');
                 if (!$data_objects || !is_array($data_objects)) {
                     return;
                 }
@@ -145,17 +139,16 @@ class Intelligent404 extends Extension
                 $exact_count = count($exact_matches);
                 $possible_count = count($possible_matches);
 
-                $redirect_on_single_match = Config::inst()->get('Restruct\\Silverstripe\\Intelligent404\\Intelligent404', 'redirect_on_single_match');
+                $redirect_on_single_match = Config::inst()->get(__CLASS__, 'redirect_on_single_match');
 
                 if ($exact_count == 1 && $redirect_on_single_match) {
                     return $this->RedirectToPage(array_shift($exact_matches));
                 } elseif ($exact_count == 0 && $possible_count == 1 && $redirect_on_single_match) {
                     return $this->RedirectToPage(array_shift($possible_matches));
                 } elseif ($exact_count > 0 || $possible_count > 0) {
-                    $content = $this->owner->customise($results_list)->renderWith(
-                        ['Intelligent404Options']
-                    );
-                    $this->owner->Content .= $content; // add to $Content
+                    $this->owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($this->owner->Content); // keep copy without 404options
+                    $this->owner->Intelligent404Options = $this->owner->customise($results_list)->renderWith('Intelligent404Options');
+                    $this->owner->Content .= $this->owner->Intelligent404Options; // add to $Content
                 }
             }
         }

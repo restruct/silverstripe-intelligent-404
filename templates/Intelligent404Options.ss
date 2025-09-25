@@ -1,4 +1,4 @@
-<h3><%t Intelligent404.OptionsHeader "Were you looking for one of the following?" %></h3>
+<h4><%t Intelligent404.OptionsHeader "Were you looking for one of the following?" %></h4>
 <% if $Pages %>
     <ul class="404options">
     	<% loop $Pages %>
