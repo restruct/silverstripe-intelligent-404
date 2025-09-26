@@ -12,6 +12,7 @@ use SilverStripe\ErrorPage\ErrorPage;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\FieldType\DBHTMLVarchar;
+use SilverStripe\View\Parsers\URLSegmentFilter;
 
 /**
  * SilverStripe Intelligent 404
@@ -30,7 +31,7 @@ class Intelligent404
      * @config
      * allow this to work in dev mode
      */
-    private static $allow_in_dev_mode = true;
+    private static $allow_in_dev_mode = false;
 
     /**
      * @config
@@ -149,6 +150,13 @@ class Intelligent404
                     $this->owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($this->owner->Content); // keep copy without 404options
                     $this->owner->Intelligent404Options = $this->owner->customise($results_list)->renderWith('Intelligent404Options');
                     $this->owner->Content .= $this->owner->Intelligent404Options; // add to $Content
+
+                    // Provide sanitized search query for templates
+                    $replacements = [
+                        '/[^A-Za-z0-9\-_.]+/u'  => '', // keep only alphanumeric + dashes/underscores/dots
+                        '/[_-]+/u' => ' ', // underscores and dashes to spaces
+                    ];
+                    $this->owner->SearchQuery = preg_replace(array_keys($replacements), array_values($replacements), $page_key);
                 }
             }
         }
