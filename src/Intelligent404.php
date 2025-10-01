@@ -2,6 +2,10 @@
 
 namespace Restruct\Silverstripe\Intelligent404;
 
+use SilverStripe\CMS\Model\SiteTree;
+use SilverStripe\CMS\Model\RedirectorPage;
+use SilverStripe\CMS\Model\VirtualPage;
+use SilverStripe\Model\List\ArrayList;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Control\HTTPResponse;
@@ -9,10 +13,7 @@ use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Extension;
 use SilverStripe\ErrorPage\ErrorPage;
-use SilverStripe\ORM\ArrayList;
-use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\FieldType\DBHTMLVarchar;
-use SilverStripe\View\Parsers\URLSegmentFilter;
 
 /**
  * SilverStripe Intelligent 404
@@ -44,22 +45,22 @@ class Intelligent404
      * auto-redirect if only one exact match is found
      */
     private static $data_objects = [
-        '\\SilverStripe\\CMS\\Model\\SiteTree' => [
+        SiteTree::class => [ # '\\SilverStripe\\CMS\\Model\\SiteTree'
             'group' => 'Pages',
             'filter' => [],
             'exclude' => [
                 'ClassName' => [
-                    'SilverStripe\\CMS\\Model\\ErrorPage',
-                    'SilverStripe\\CMS\\Model\\RedirectorPage',
-                    'SilverStripe\\CMS\\Model\\VirtualPage'
+                    ErrorPage::class, # 'SilverStripe\\CMS\\Model\\ErrorPage'
+                    RedirectorPage::class, # 'SilverStripe\\CMS\\Model\\RedirectorPage'
+                    VirtualPage::class, # 'SilverStripe\\CMS\\Model\\VirtualPage'
                 ]
             ]
         ]
     ];
 
-    public function onAfterInit()
+    protected function onAfterInit()
     {
-        $error_code = $this->owner->failover->ErrorCode ?: 404;
+        $error_code = $this->getOwner()->failover->ErrorCode ?: 404;
         if ($error_code != 404) {
             return; // we only deal with 404
         }
@@ -73,19 +74,19 @@ class Intelligent404
             }
         }
 
-        if ( !Director::isDev() || Config::inst()->get(__CLASS__, 'allow_in_dev_mode') ) {
-            $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', $_SERVER['REQUEST_URI'], $rawString);
+        if ( !Director::isDev() || Config::inst()->get(self::class, 'allow_in_dev_mode') ) {
+            $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', (string) $_SERVER['REQUEST_URI'], $rawString);
 
             if ($extract) {
                 $uri = preg_replace('/\.(aspx?|html?|php[34]?)$/i', '', $rawString[0]); // skip known page extensions
-                $parts = preg_split('/\//', $uri, -1, PREG_SPLIT_NO_EMPTY);
+                $parts = preg_split('/\//', (string) $uri, -1, PREG_SPLIT_NO_EMPTY);
                 $page_key = array_pop($parts);
-                $sounds_like = soundex($page_key);
+                $sounds_like = soundex((string) $page_key);
                 $exact_matches = [];
                 $possible_matches = [];
                 $results_list = [];
 
-                $data_objects = Config::inst()->get(__CLASS__, 'data_objects');
+                $data_objects = Config::inst()->get(self::class, 'data_objects');
                 if (!$data_objects || !is_array($data_objects)) {
                     return;
                 }
@@ -130,7 +131,7 @@ class Intelligent404
                         if ($url_segment == $page_key) {
                             $results_list[$group]->push($result);
                             $exact_matches[$link] = $link;
-                        } elseif ($sounds_like == soundex($url_segment)) {
+                        } elseif ($sounds_like == soundex((string) $url_segment)) {
                             $results_list[$group]->push($result);
                             $possible_matches[$link] = $link;
                         }
@@ -140,23 +141,23 @@ class Intelligent404
                 $exact_count = count($exact_matches);
                 $possible_count = count($possible_matches);
 
-                $redirect_on_single_match = Config::inst()->get(__CLASS__, 'redirect_on_single_match');
+                $redirect_on_single_match = Config::inst()->get(self::class, 'redirect_on_single_match');
 
                 if ($exact_count == 1 && $redirect_on_single_match) {
-                    return $this->RedirectToPage(array_shift($exact_matches));
+                    $this->RedirectToPage(array_shift($exact_matches));
                 } elseif ($exact_count == 0 && $possible_count == 1 && $redirect_on_single_match) {
-                    return $this->RedirectToPage(array_shift($possible_matches));
+                    $this->RedirectToPage(array_shift($possible_matches));
                 } elseif ($exact_count > 0 || $possible_count > 0) {
-                    $this->owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($this->owner->Content); // keep copy without 404options
-                    $this->owner->Intelligent404Options = $this->owner->customise($results_list)->renderWith('Intelligent404Options');
-                    $this->owner->Content .= $this->owner->Intelligent404Options; // add to $Content
+                    $this->getOwner()->ContentWithout404Options = DBHTMLVarchar::create()->setValue($this->getOwner()->Content); // keep copy without 404options
+                    $this->getOwner()->Intelligent404Options = $this->getOwner()->customise($results_list)->renderWith('Intelligent404Options');
+                    $this->getOwner()->Content .= $this->getOwner()->Intelligent404Options; // add to $Content
 
                     // Provide sanitized search query for templates
                     $replacements = [
                         '/[^A-Za-z0-9\-_.]+/u'  => '', // keep only alphanumeric + dashes/underscores/dots
                         '/[_-]+/u' => ' ', // underscores and dashes to spaces
                     ];
-                    $this->owner->SearchQuery = preg_replace(array_keys($replacements), array_values($replacements), $page_key);
+                    $this->getOwner()->SearchQuery = preg_replace(array_keys($replacements), array_values($replacements), (string) $page_key);
                 }
             }
         }
@@ -167,9 +168,9 @@ class Intelligent404
      * @param string
      * @return 301 response / redirect
      */
-    private function RedirectToPage($url)
+    private function RedirectToPage($url) : never
     {
-        $response = new HTTPResponse();
+        $response = HTTPResponse::create();
         $response->redirect($url, 301);
         throw new HTTPResponse_Exception($response);
     }
