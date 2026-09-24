@@ -149,7 +149,9 @@ The module cannot be tested on its own: it needs a host Silverstripe project wit
 and `silverstripe/recipe-testing`. Require it there through a Composer **path repository with
 `symlink: true`** - `/tests` is `export-ignore`, so a dist or mirrored install contains no tests - add
 its test namespace (`Restruct\Silverstripe\Intelligent404\Tests\` →
-`vendor/restruct/silverstripe-intelligent-404/tests/`) to the host's `autoload-dev`, then:
+`vendor/restruct/silverstripe-intelligent-404/tests/`) to the host's `autoload-dev`, and copy this
+module's `phpunit.xml.dist` to the host root as `phpunit.xml` (it is a template: its paths are relative
+to the host root, so it does not work in place). Then:
 
 ```bash
 # Silverstripe 5 (PHPUnit 9) - the path must come before flush=1
