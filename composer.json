@@ -1,28 +1,50 @@
 {
-	"name": "restruct/silverstripe-intelligent-404",
-	"description": "Add additional smart redirection functionality to the existing 404 ErrorPage",
-	"type": "silverstripe-vendormodule",
-	"keywords": [
-		"silverstripe",
-		"redirect"
-	],
-	"license": "MIT",
-	"authors": [
-		{
-			"name": "Restruct web & apps",
-			"email": "dev@restruct.nl"
-		},
-		{
-			"name": "Ralph Slooten",
-			"homepage": "http://www.axllent.org/"
-		}
-	],
+    "name": "restruct/silverstripe-intelligent-404",
+    "description": "Add additional smart redirection functionality to the existing 404 ErrorPage",
+    "type": "silverstripe-vendormodule",
+    "keywords": [
+        "silverstripe",
+        "redirect"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Restruct web & apps",
+            "email": "dev@restruct.nl"
+        },
+        {
+            "name": "Ralph Slooten",
+            "homepage": "http://www.axllent.org/"
+        }
+    ],
     "require": {
-        "silverstripe/framework": "^4.0 || ^5.0 || ^6.0"
-	},
+        "php": "^8.1",
+        "silverstripe/framework": "^5 || ^6",
+        "silverstripe/cms": "^5 || ^6",
+        "silverstripe/errorpage": "^2 || ^3"
+    },
+    "require-dev": {
+        "silverstripe/recipe-testing": "^3 || ^4"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "4.x-dev"
+        }
+    },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/restruct"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "Restruct\\Silverstripe\\Intelligent404\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Restruct\\Silverstripe\\Intelligent404\\Tests\\": "tests/"
         }
     }
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEMPLATE for the HOST project's phpunit.xml: copy it to the root of a Silverstripe project that
+     has this module installed as a symlinked path repository (see README "Running the tests").
+     Every path in it is relative to that HOST root, where vendor/ lives. It does not work in place:
+     run from this module, or through -c pointing here, PHPUnit resolves the paths against the
+     module's own (real) directory, which has no vendor/silverstripe/framework next to it.
+     failOnWarning is pinned because warning-to-error escalation is the test RUNNER's behaviour and
+     differs by PHPUnit major: 9 (Silverstripe 5) converts warnings by default, 11 (Silverstripe 6)
+     does not. failOnEmptyTestSuite makes a run that finds no tests fail instead of pass. -->
+<phpunit bootstrap="vendor/silverstripe/framework/tests/bootstrap.php" colors="true"
+         failOnWarning="true" failOnEmptyTestSuite="true">
+    <testsuites>
+        <testsuite name="intelligent404">
+            <!-- was <directory>tests</directory>: only valid from the module's own root -->
+            <directory>vendor/restruct/silverstripe-intelligent-404/tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
