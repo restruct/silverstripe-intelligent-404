@@ -15,6 +15,7 @@ use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Extension;
 use SilverStripe\ErrorPage\ErrorPage;
 use SilverStripe\ErrorPage\ErrorPageController;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\FieldType\DBHTMLVarchar;
 
 /**
@@ -41,6 +42,14 @@ class Intelligent404
      * auto-redirect if only one exact match is found
      */
     private static $redirect_on_single_match = true;
+
+    /**
+     * @config
+     * leave out records that are hidden from search (ShowInSearch = 0, e.g. pages unticked for
+     * "Show in search?"), so a 404 does not advertise them. Only applies to classes that have a
+     * ShowInSearch field; set to false to match such records again.
+     */
+    private static $exclude_hidden_from_search = true;
 
     /**
      * @config
@@ -136,6 +145,16 @@ class Intelligent404
                         $results = $results->exclude($config['exclude']); // exclude
                     }
 
+                    # Records hidden from search are not to be advertised on a 404 either (config, default on).
+                    # Filtered in SQL, and only where the class actually has the field (SiteTree does, a custom
+                    # DataObject usually does not)
+                    if (
+                        Config::inst()->get(self::class, 'exclude_hidden_from_search') &&
+                        DataObject::getSchema()->fieldSpec($class, 'ShowInSearch')
+                    ) {
+                        $results = $results->filter('ShowInSearch', true);
+                    }
+
                     foreach ($results as $result) {
                         $link = $result->Link();
 
@@ -148,6 +167,15 @@ class Intelligent404
                         $url_parts = preg_split('/\//', $rel_link, -1, PREG_SPLIT_NO_EMPTY);
 
                         $url_segment = end($url_parts);
+
+                        # SECURITY: never list or redirect to a record the current visitor may not view, or a
+                        # 404 would leak the titles and URLs of login-protected pages. Checked only for a
+                        # (possible) match, as canView() can be expensive and most records match nothing.
+                        # A skipped record does not count towards the single-match redirect either.
+                        $is_match = $url_segment == $page_key || $sounds_like == soundex((string) $url_segment);
+                        if (!$is_match || !$result->canView()) {
+                            continue;
+                        }
 
                         if ($url_segment == $page_key) {
                             $results_list[$group]->push($result);

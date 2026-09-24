@@ -3,6 +3,7 @@
 namespace Restruct\Silverstripe\Intelligent404\Tests;
 
 use Restruct\Silverstripe\Intelligent404\Intelligent404;
+use Restruct\Silverstripe\Intelligent404\Tests\Stub\PrivateProduct;
 use Restruct\Silverstripe\Intelligent404\Tests\Stub\Product;
 use SilverStripe\CMS\Controllers\ModelAsController;
 use SilverStripe\CMS\Model\RedirectorPage;
@@ -16,6 +17,8 @@ use SilverStripe\Dev\SapphireTest;
 use SilverStripe\ErrorPage\ErrorPage;
 use SilverStripe\ErrorPage\ErrorPageController;
 use SilverStripe\ORM\FieldType\DBHTMLVarchar;
+use SilverStripe\Security\Group;
+use SilverStripe\Security\Member;
 use SilverStripe\Versioned\Versioned;
 
 /**
@@ -33,6 +36,7 @@ class Intelligent404Test extends SapphireTest
 
     protected static $extra_dataobjects = [
         Product::class,
+        PrivateProduct::class,
     ];
 
     /** @var string|null REQUEST_URI as it was before the test, restored in tearDown() */
@@ -359,5 +363,142 @@ class Intelligent404Test extends SapphireTest
         ]);
 
         $this->assertLeftAlone('/gone/about-us');
+    }
+
+    /**
+     * Create and publish a page (the fixture pages are published in setUp(); these are made per test so
+     * they cannot add a soundalike to another test). Soundex codes: members-only / membres-only M516,
+     * hidden-page H351, none of which collides with Intelligent404Test.yml.
+     */
+    private function publishedPage(array $data): SiteTree
+    {
+        $page = null;
+        // setUp() left the reading mode on Live; write on Draft and publish, like the fixture pages
+        Versioned::withVersionedMode(function () use ($data, &$page) {
+            Versioned::set_stage(Versioned::DRAFT);
+            $page = SiteTree::create($data);
+            $page->write();
+            $page->publishSingle();
+        });
+
+        return $page;
+    }
+
+    /**
+     * A page only the members of one group may view, and that group.
+     */
+    private function membersOnlyPage(): Group
+    {
+        $group = Group::create(['Title' => 'Staff', 'Code' => 'i404-staff']);
+        $group->write();
+        $page = $this->publishedPage([
+            'Title' => 'Members only',
+            'URLSegment' => 'members-only',
+            'CanViewType' => 'OnlyTheseUsers',
+        ]);
+        $page->ViewerGroups()->add($group);
+
+        return $group;
+    }
+
+    public function testProtectedPageIsNotRedirectedToForAnAnonymousVisitor()
+    {
+        // SECURITY: an exact match on a page the visitor may not view must not redirect there, which
+        // would reveal its URL (and, followed, its existence behind the login form).
+        $this->membersOnlyPage();
+        $this->logOut();
+
+        $this->assertLeftAlone('/gone/members-only');
+    }
+
+    public function testProtectedPageIsNotListedForAnAnonymousVisitor()
+    {
+        // SECURITY: nor may it appear in the options list, which shows its title and link
+        $this->membersOnlyPage();
+        $this->logOut();
+        Config::modify()->set(Intelligent404::class, 'redirect_on_single_match', false);
+
+        $this->assertLeftAlone('/gone/members-only');
+    }
+
+    public function testProtectedPageIsNotListedForAMemberWithoutAccess()
+    {
+        // Logged in is not enough: it is the page's own canView() that decides
+        $this->membersOnlyPage();
+        $outsider = Member::create(['Email' => 'outsider@example.com', 'FirstName' => 'Outsider']);
+        $outsider->write();
+        $this->logInAs($outsider);
+        $this->assertNotNull(\SilverStripe\Security\Security::getCurrentUser(), 'Expected a logged-in member');
+        Config::modify()->set(Intelligent404::class, 'redirect_on_single_match', false);
+
+        $this->assertLeftAlone('/gone/members-only');
+    }
+
+    public function testProtectedPageIsRedirectedToAndListedForAPermittedMember()
+    {
+        $group = $this->membersOnlyPage();
+        $member = Member::create(['Email' => 'staff@example.com', 'FirstName' => 'Staff']);
+        $member->write();
+        $member->Groups()->add($group);
+        $this->logInAs($member);
+
+        $this->assertRedirectsTo('/gone/members-only', '/members-only');
+
+        Config::modify()->set(Intelligent404::class, 'redirect_on_single_match', false);
+        $options = (string) $this->hit('/gone/members-only')->Intelligent404Options;
+        $this->assertStringContainsString('href="/members-only"', $options);
+        $this->assertStringContainsString('Members only', $options);
+    }
+
+    public function testProtectedExactMatchDoesNotCountTowardsTheSingleMatchRedirect()
+    {
+        // The protected page exact-matches, a public page only sounds like it. Unchecked, the one exact
+        // match would win and redirect to the protected page; checked, the anonymous visitor has no
+        // exact match left and is sent to the one public soundalike.
+        $this->membersOnlyPage();
+        $this->publishedPage(['Title' => 'Membres only', 'URLSegment' => 'membres-only']);
+        $this->logOut();
+
+        $this->assertRedirectsTo('/gone/members-only', '/membres-only');
+    }
+
+    public function testOtherDataObjectsAreCheckedWithCanViewToo()
+    {
+        // PrivateProduct keeps the DataObject default canView() (ADMIN only): an anonymous visitor
+        // gets nothing, an administrator is redirected.
+        PrivateProduct::create(['Title' => 'Secret item', 'URLSegment' => 'secret-item'])->write();
+        Config::modify()->merge(Intelligent404::class, 'data_objects', [
+            PrivateProduct::class => [
+                'group' => 'Products',
+            ],
+        ]);
+
+        $this->logOut();
+        $this->assertLeftAlone('/gone/secret-item');
+
+        $this->logInWithPermission('ADMIN');
+        $this->assertRedirectsTo('/gone/secret-item', '/private-shop/secret-item');
+    }
+
+    public function testPageHiddenFromSearchIsExcludedByDefault()
+    {
+        $this->publishedPage(['Title' => 'Hidden page', 'URLSegment' => 'hidden-page', 'ShowInSearch' => false]);
+
+        // The declared default, read off the class itself (see testAllowInDevModeIsDeclaredOffByDefault)
+        $property = new \ReflectionProperty(Intelligent404::class, 'exclude_hidden_from_search');
+        $this->assertTrue($property->getDefaultValue());
+
+        $this->assertLeftAlone('/gone/hidden-page');
+
+        Config::modify()->set(Intelligent404::class, 'redirect_on_single_match', false);
+        $this->assertLeftAlone('/gone/hidden-page');
+    }
+
+    public function testPageHiddenFromSearchIsMatchedWhenTheOptionIsOff()
+    {
+        $this->publishedPage(['Title' => 'Hidden page', 'URLSegment' => 'hidden-page', 'ShowInSearch' => false]);
+        Config::modify()->set(Intelligent404::class, 'exclude_hidden_from_search', false);
+
+        $this->assertRedirectsTo('/gone/hidden-page', '/hidden-page');
     }
 }

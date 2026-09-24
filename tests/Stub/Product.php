@@ -32,6 +32,16 @@ class Product extends DataObject implements TestOnly
     }
 
     /**
+     * A public catalogue: anyone may view a product. The module only lists or redirects to records the
+     * visitor can view, and DataObject::canView() on its own allows ADMIN only, so a real class listed
+     * in `data_objects` needs a canView() like this one (see the README).
+     */
+    public function canView($member = null)
+    {
+        return true;
+    }
+
+    /**
      * The bundled options template renders $MenuTitle for every result.
      */
     public function getMenuTitle()

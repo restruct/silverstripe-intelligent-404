@@ -61,6 +61,16 @@ Only the last segment of the requested URL is matched, and a trailing `.asp`, `.
 with the URL segment `about-us` anywhere in the site tree. Only the `404` ErrorPage is affected;
 other error pages are left alone.
 
+### Only what the visitor may see
+
+A 404 never lists or redirects to a record the current visitor may not view: every match is checked
+with `canView()` for the logged-in member (or for an anonymous visitor). A login-protected page is
+therefore suggested to the members who can open it, and to nobody else. A match that fails the check
+does not count towards the single-match redirect either, so it cannot win over a public soundalike.
+
+Pages hidden from search (**Show in search?** unticked, `ShowInSearch = 0`) are left out as well, by
+default. This applies to every configured class that has a `ShowInSearch` field.
+
 # Configuration
 
 By default Intelligent-404 will just try match 404 pages with *all pages* in your SiteTree, except for pages with the classnames:
@@ -77,10 +87,14 @@ By default Intelligent-404 will not work in dev mode (to help you spot issues). 
 By default the module will also redirect if either 1 exact match or one potential match is found (eg: the page has been recreated elsewhere).
 You can change this by setting `redirect_on_single_match: false`, in which case the single match is listed as an option instead.
 
+Records hidden from search are not matched (see above). Set `exclude_hidden_from_search: false` to
+match them again; `canView()` is still checked.
+
 ```yml
 Restruct\Silverstripe\Intelligent404\Intelligent404:
-  allow_in_dev_mode: true           # allow this to work in dev mode (default false)
-  redirect_on_single_match: false   # do not auto-redirect if one exact match is found (default true)
+  allow_in_dev_mode: true             # allow this to work in dev mode (default false)
+  redirect_on_single_match: false     # do not auto-redirect if one exact match is found (default true)
+  exclude_hidden_from_search: false   # also match records with ShowInSearch = 0 (default true)
 ```
 
 ## Adding other DataObjects
@@ -99,6 +113,17 @@ Restruct\Silverstripe\Intelligent404\Intelligent404:
 ```
 
 The URL segment matched is the last segment of the object's `Link()`.
+
+**The class needs a `canView()` that lets your visitors see it.** Only records the visitor may view
+are matched, and `DataObject::canView()` on its own allows administrators only. A class without its
+own `canView()` is therefore never suggested to the public. For a public catalogue:
+
+```php
+public function canView($member = null)
+{
+    return true;
+}
+```
 
 ## Notes:
 
