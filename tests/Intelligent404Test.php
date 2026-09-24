@@ -165,6 +165,29 @@ class Intelligent404Test extends SapphireTest
         $this->assertRedirectsTo('/old-site/about-us.php', '/company/about-us');
     }
 
+    public function testPhpExtensionIsStrippedBeforeMatching()
+    {
+        // testKnownPageExtensionIsStripped cannot tell stripping from no stripping: soundex() ignores
+        // the dot, so "about-us.php" still soundex()es to A132 and the single soundalike match redirects
+        // to the same page. A second page that SOUNDS like about-us (A132) but is spelled differently
+        // takes that fallback away: unstripped, the request has no exact match and two soundalikes, so
+        // it lists options; only the stripped "about-us" exact-matches one page and redirects.
+        // Created here rather than in Intelligent404Test.yml, where it would also give
+        // testSingleSoundalikeMatchRedirects a second soundalike and stop its redirect.
+        // setUp() left the reading mode on Live; write on Draft and publish, like the fixture pages.
+        Versioned::withVersionedMode(function () {
+            Versioned::set_stage(Versioned::DRAFT);
+            $lookalike = SiteTree::create([
+                'Title' => 'About as',
+                'URLSegment' => 'about-as',
+            ]);
+            $lookalike->write();
+            $lookalike->publishSingle();
+        });
+
+        $this->assertRedirectsTo('/x/about-us.php', '/company/about-us');
+    }
+
     public function testSingleSoundalikeMatchRedirects()
     {
         // "abuot-us" is not an exact segment, but soundex()es the same as "about-us" (A132)
