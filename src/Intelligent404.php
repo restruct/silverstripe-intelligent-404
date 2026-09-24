@@ -77,7 +77,10 @@ class Intelligent404
         }
 
         if ( !Director::isDev() || Config::inst()->get(self::class, 'allow_in_dev_mode') ) {
-            $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', (string) $_SERVER['REQUEST_URI'], $rawString);
+            # Use the guarded $request from above: REQUEST_URI is absent when the error page controller
+            # runs outside a web request (CLI), and reading it unguarded raised an "Undefined array key" warning
+//            $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', (string) $_SERVER['REQUEST_URI'], $rawString);
+            $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', (string) $request, $rawString);
 
             if ($extract) {
                 $uri = preg_replace('/\.(aspx?|html?|php[34]?)$/i', '', $rawString[0]); // skip known page extensions
@@ -98,6 +101,10 @@ class Intelligent404
                 $list_class = class_exists(ArrayList::class) ? ArrayList::class : LegacyArrayList::class;
 
                 foreach ($data_objects as $class => $config) {
+                    # Accept `\Product` as well as `Product`: ClassInfo::exists() only recognises the
+                    # leading-backslash form once the class happens to be loaded already
+                    $class = self::normaliseClassName((string) $class);
+
                     if (
                         !ClassInfo::exists($class) ||
                         !method_exists($class, 'Link')
@@ -168,6 +175,21 @@ class Intelligent404
                 }
             }
         }
+    }
+
+    /**
+     * Strip a leading backslash from a configured class name.
+     *
+     * Earlier versions of the README told projects to key `data_objects` as `\Product`. PHP itself
+     * accepts that form, but ClassInfo::exists() falls back on the class manifest, which does not,
+     * so such an entry was silently skipped unless the class had already been loaded.
+     *
+     * @param string $class
+     * @return string
+     */
+    public static function normaliseClassName($class)
+    {
+        return ltrim((string) $class, '\\');
     }
 
     /*
