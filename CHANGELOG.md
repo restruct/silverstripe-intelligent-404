@@ -24,13 +24,16 @@ Silverstripe 5 and 6 from one line, a test suite, CI, and two fixes. No breaking
 - **`data_objects` entries with a leading backslash were skipped silently.** The README told
   projects to write `\Product`; `ClassInfo::exists()` only recognises that form once the class has
   already been loaded, so the entry usually matched nothing. Configured class names are now
-  normalised, and the README no longer asks for the backslash.
+  normalised, and the README no longer asks for the backslash. If the same class is configured both
+  with and without the backslash, the two entries collapse into one and the later one wins.
 - An `Undefined array key "REQUEST_URI"` warning when the error page controller runs outside a web
   request.
 
 ### Added
 
-- A behavioural test suite (18 tests) and GitHub Actions CI across Silverstripe 5 and 6.
+- A behavioural test suite (20 tests) and GitHub Actions CI across Silverstripe 5 and 6.
+- `Intelligent404::getConfiguredClasses()`: the `data_objects` config with normalised class names,
+  as the extension reads it.
 - README: requirements, a version compatibility table, the template variables the module sets
   (`$ContentWithout404Options`, `$Intelligent404Options`, `$SearchQuery`), and how to run the tests.
 - `funding` in `composer.json`.

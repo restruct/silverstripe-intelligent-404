@@ -91,8 +91,13 @@ class Intelligent404
                 $possible_matches = [];
                 $results_list = [];
 
-                $data_objects = Config::inst()->get(self::class, 'data_objects');
-                if (!$data_objects || !is_array($data_objects)) {
+                # Read through the seam, which normalises the configured class names (see getConfiguredClasses())
+//                $data_objects = Config::inst()->get(self::class, 'data_objects');
+//                if (!$data_objects || !is_array($data_objects)) {
+//                    return;
+//                }
+                $data_objects = self::getConfiguredClasses();
+                if (!$data_objects) {
                     return;
                 }
 
@@ -102,8 +107,10 @@ class Intelligent404
 
                 foreach ($data_objects as $class => $config) {
                     # Accept `\Product` as well as `Product`: ClassInfo::exists() only recognises the
-                    # leading-backslash form once the class happens to be loaded already
-                    $class = self::normaliseClassName((string) $class);
+                    # leading-backslash form once the class happens to be loaded already.
+                    # The keys arrive normalised from getConfiguredClasses(), where the call now lives
+                    # so a test can reach it (in a test run every class is loaded, which hides the bug here)
+//                    $class = self::normaliseClassName((string) $class);
 
                     if (
                         !ClassInfo::exists($class) ||
@@ -175,6 +182,32 @@ class Intelligent404
                 }
             }
         }
+    }
+
+    /**
+     * The configured `data_objects`, keyed by class name without a leading backslash.
+     *
+     * This is the one place onAfterInit() reads that config from, so the normalisation is testable
+     * without a 404 request. An empty array (also for a missing or non-array config) means "nothing
+     * to match against". If a project configures the same class both as `\Product` and as `Product`,
+     * the two keys collapse into one and the entry merged in LAST wins; matching the class twice
+     * would only list every hit twice.
+     *
+     * @return array<string, array> class name => its `group`/`filter`/`exclude` config
+     */
+    public static function getConfiguredClasses(): array
+    {
+        $data_objects = Config::inst()->get(self::class, 'data_objects');
+        if (!$data_objects || !is_array($data_objects)) {
+            return [];
+        }
+
+        $classes = [];
+        foreach ($data_objects as $class => $config) {
+            $classes[self::normaliseClassName((string) $class)] = $config;
+        }
+
+        return $classes;
     }
 
     /**

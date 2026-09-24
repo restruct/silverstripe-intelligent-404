@@ -290,4 +290,41 @@ class Intelligent404Test extends SapphireTest
         $this->assertSame(Product::class, Intelligent404::normaliseClassName('\\' . Product::class));
         $this->assertSame(Product::class, Intelligent404::normaliseClassName(Product::class));
     }
+
+    public function testConfiguredClassesAreReturnedNormalised()
+    {
+        // The seam onAfterInit() reads data_objects through: keys lose their leading backslash,
+        // each entry keeps its own config, and a missing or non-array config means "nothing to match".
+        $productConfig = ['group' => 'Products', 'filter' => ['InStock' => true]];
+        Config::modify()->set(Intelligent404::class, 'data_objects', [
+            '\\' . Product::class => $productConfig,
+        ]);
+        $this->assertSame([Product::class => $productConfig], Intelligent404::getConfiguredClasses());
+
+        Config::modify()->set(Intelligent404::class, 'data_objects', 'not-an-array');
+        $this->assertSame([], Intelligent404::getConfiguredClasses());
+
+        Config::modify()->remove(Intelligent404::class, 'data_objects');
+        $this->assertSame([], Intelligent404::getConfiguredClasses());
+    }
+
+    public function testMatchingUsesTheNormalisedClassList()
+    {
+        // The call site: onAfterInit() must match against the normalised list, not the raw config.
+        // Every class is already loaded in a test run, so a raw `\Class` key would still "work" here;
+        // what tells the two apart is that `\SiteTree` and `SiteTree` collapse into ONE entry, and
+        // the later one (which filters every page out) wins. Matched raw, the plain SiteTree entry
+        // would still find the about-us page and redirect there.
+        Config::modify()->set(Intelligent404::class, 'data_objects', [
+            SiteTree::class => [
+                'group' => 'Pages',
+            ],
+            '\\' . SiteTree::class => [
+                'group' => 'Pages',
+                'filter' => ['URLSegment' => 'no-such-segment'],
+            ],
+        ]);
+
+        $this->assertLeftAlone('/gone/about-us');
+    }
 }
