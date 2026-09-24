@@ -90,6 +90,8 @@ You can change this by setting `redirect_on_single_match: false`, in which case 
 
 Records hidden from search are not matched (see above). Set `exclude_hidden_from_search: false` to
 match them again; `canView()` is still checked.
+A `data_objects` entry whose own `filter` selects `ShowInSearch: 0` matches nothing while this is on,
+because both filters apply; set `exclude_hidden_from_search: false` for such a setup.
 
 ```yml
 Restruct\Silverstripe\Intelligent404\Intelligent404:
