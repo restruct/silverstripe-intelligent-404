@@ -69,7 +69,8 @@ therefore suggested to the members who can open it, and to nobody else. A match 
 does not count towards the single-match redirect either, so it cannot win over a public soundalike.
 
 Pages hidden from search (**Show in search?** unticked, `ShowInSearch = 0`) are left out as well, by
-default. This applies to every configured class that has a `ShowInSearch` field.
+default. This applies to every record that has a `ShowInSearch` field, also when only a subclass of
+the configured class declares it.
 
 # Configuration
 
@@ -180,10 +181,11 @@ to the host root, so it does not work in place). Then:
 
 ```bash
 # Silverstripe 5 (PHPUnit 9) - the path must come before flush=1
-vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-404/tests flush=1
+vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-404/tests flush=1 --fail-on-empty-test-suite
 
-# Silverstripe 6 (PHPUnit 11) - a flush=1 argument is ignored, use the env var
-SS_PHPUNIT_FLUSH=1 vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-404/tests
+# Silverstripe 6 (PHPUnit 11) - flush through the env var: a flush=1 argument makes PHPUnit
+# abort (Test file "flush=1" not found)
+SS_PHPUNIT_FLUSH=1 vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-404/tests --fail-on-empty-test-suite
 ```
 
 CI runs the same suite against Silverstripe 5 and 6 on every push; see `.github/workflows/ci.yml`.

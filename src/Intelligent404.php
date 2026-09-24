@@ -156,6 +156,16 @@ class Intelligent404
                     }
 
                     foreach ($results as $result) {
+                        # The SQL filter above only sees fields of the configured class and its parents. A
+                        # SUBCLASS record that declares ShowInSearch itself is checked here, per record
+                        if (
+                            Config::inst()->get(self::class, 'exclude_hidden_from_search') &&
+                            $result->hasField('ShowInSearch') &&
+                            !$result->ShowInSearch
+                        ) {
+                            continue;
+                        }
+
                         $link = $result->Link();
 
                         $rel_link = Director::makeRelative($link);

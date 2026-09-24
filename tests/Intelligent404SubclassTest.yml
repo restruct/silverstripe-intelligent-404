@@ -1,0 +1,9 @@
+# Soundex codes of the URL segments used here and in Intelligent404SubclassTest, so a new record
+# does not collide by accident:
+#   page-not-found P253 - hidden-gizmo H352 - visible-gizmo V214
+SilverStripe\ErrorPage\ErrorPage:
+  e404:
+    Title: Page not found
+    URLSegment: page-not-found
+    ErrorCode: 404
+    Content: '<p>Sorry, not found.</p>'

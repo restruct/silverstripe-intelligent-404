@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.1.0 (unreleased)
+## 4.1.0 (2026-09-25)
 
 Silverstripe 5 and 6 from one line, a security fix, a test suite, CI, and two fixes. The security
 fix changes which records are matched; see Upgrading.
@@ -17,8 +17,8 @@ fix changes which records are matched; see Upgrading.
 ### Changed
 
 - **Records hidden from search (`ShowInSearch = 0`) are no longer matched**, by default. The new
-  `exclude_hidden_from_search` option (default `true`) controls this; it applies to every configured
-  class that has a `ShowInSearch` field.
+  `exclude_hidden_from_search` option (default `true`) controls this; it applies to every record
+  that has a `ShowInSearch` field, also when only a subclass of the configured class declares it.
 - **Supports Silverstripe `^5 || ^6`** (was `^6` in `4.0.0`). Silverstripe 4 is end of life and is
   no longer supported; projects on it should stay on `3.0.x`.
 - `composer.json` now declares what the module has always used: `silverstripe/cms` (SiteTree,
@@ -43,13 +43,15 @@ fix changes which records are matched; see Upgrading.
 
 ### Added
 
-- A behavioural test suite (30 tests) and GitHub Actions CI across Silverstripe 5 and 6.
+- A behavioural test suite (32 tests) and GitHub Actions CI across Silverstripe 5 and 6.
   - The declared default of `allow_in_dev_mode` (`false`) is checked on the class itself, so a
     config override elsewhere in the suite cannot hide a changed default.
   - Stripping a `.php` ending is checked against a page that sounds like the target, so a
     soundex fallback cannot pass for an exact match.
   - Login-protected pages are checked for an anonymous visitor, a member without access and a
     permitted member, and a non-page class without its own `canView()`.
+  - Hiding from search is checked on a record whose class declares `ShowInSearch` while the
+    configured parent class does not.
 - `Intelligent404::getConfiguredClasses()`: the `data_objects` config with normalised class names,
   as the extension reads it.
 - README: requirements, a version compatibility table, the template variables the module sets
