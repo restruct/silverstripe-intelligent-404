@@ -121,9 +121,10 @@ jobs:
           <?xml version="1.0" encoding="UTF-8"?>
           <!-- Warning-to-error escalation is the RUNNER's behaviour and differs by PHPUnit
                major: 9 (SS5) converts warnings by default, 11 (SS6) has no such attribute.
-               failOnWarning is pinned so a warning behaves identically on every leg. -->
+               failOnWarning is pinned so a warning behaves identically on every leg.
+               failOnEmptyTestSuite: a suite that finds no tests fails instead of passing. -->
           <phpunit bootstrap="vendor/silverstripe/framework/tests/bootstrap.php" colors="true"
-                   failOnWarning="true">
+                   failOnWarning="true" failOnEmptyTestSuite="true">
               <testsuites>
                   <testsuite name="intelligent404">
                       <directory>vendor/restruct/silverstripe-intelligent-404/tests</directory>
@@ -165,21 +166,24 @@ jobs:
         if: matrix.silverstripe == '5'
         working-directory: app-host
         # PHPUnit 9 on framework 5 flushes the test manifest through a PATH-FIRST `flush=1`
-        # argument (never `--testsuite ... flush=1`, which silently does not flush);
+        # argument (PHPUnit aborts with 'Cannot open file "flush=1"' unless the path comes first);
         # SS_PHPUNIT_FLUSH is inert on framework 5.
+        # --fail-on-empty-test-suite: a run that finds no tests fails instead of passing green.
         run: |
-          vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-404/tests flush=1
-          vendor/bin/phpunit app/tests flush=1
+          vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-404/tests flush=1 \
+            --fail-on-empty-test-suite
+          vendor/bin/phpunit app/tests flush=1 --fail-on-empty-test-suite
 
       - name: Run tests (Silverstripe 6)
         if: matrix.silverstripe == '6'
         working-directory: app-host
         env:
-          # PHPUnit 11 ignores a `flush=1` argument, so the manifest is flushed through this.
+          # PHPUnit 11 treats a bare `flush=1` argument as a test path and aborts ('Test file
+          # "flush=1" not found'), so the manifest is flushed through this.
           SS_PHPUNIT_FLUSH: 1
         run: |
-          vendor/bin/phpunit --testsuite intelligent404
-          vendor/bin/phpunit --testsuite consumer
+          vendor/bin/phpunit --testsuite intelligent404 --fail-on-empty-test-suite
+          vendor/bin/phpunit --testsuite consumer --fail-on-empty-test-suite
 
       - name: Boot the app and build the database (Silverstripe 5)
         # The suite proves the extension behaves; this proves the module does not break a real

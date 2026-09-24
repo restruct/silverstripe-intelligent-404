@@ -6,9 +6,9 @@
      module's own (real) directory, which has no vendor/silverstripe/framework next to it.
      failOnWarning is pinned because warning-to-error escalation is the test RUNNER's behaviour and
      differs by PHPUnit major: 9 (Silverstripe 5) converts warnings by default, 11 (Silverstripe 6)
-     does not. -->
+     does not. failOnEmptyTestSuite makes a run that finds no tests fail instead of pass. -->
 <phpunit bootstrap="vendor/silverstripe/framework/tests/bootstrap.php" colors="true"
-         failOnWarning="true">
+         failOnWarning="true" failOnEmptyTestSuite="true">
     <testsuites>
         <testsuite name="intelligent404">
             <!-- was <directory>tests</directory>: only valid from the module's own root -->
