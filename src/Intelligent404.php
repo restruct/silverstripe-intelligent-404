@@ -5,7 +5,8 @@ namespace Restruct\Silverstripe\Intelligent404;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\CMS\Model\RedirectorPage;
 use SilverStripe\CMS\Model\VirtualPage;
-use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\List\ArrayList; # Silverstripe 6
+use SilverStripe\ORM\ArrayList as LegacyArrayList; # Silverstripe 5 (moved to SilverStripe\Model\List in 6)
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Control\HTTPResponse;
@@ -92,6 +93,10 @@ class Intelligent404
                     return;
                 }
 
+                # ArrayList lives in SilverStripe\Model\List on Silverstripe 6 and in SilverStripe\ORM on 5;
+                # class_exists() autoloads, which is what we want for a core framework class
+                $list_class = class_exists(ArrayList::class) ? ArrayList::class : LegacyArrayList::class;
+
                 foreach ($data_objects as $class => $config) {
                     if (
                         !ClassInfo::exists($class) ||
@@ -103,7 +108,8 @@ class Intelligent404
                     $group = !empty($config['group']) ? $config['group'] : 'Pages';
 
                     if (empty($results_list[$group])) {
-                        $results_list[$group] = ArrayList::create();
+//                        $results_list[$group] = ArrayList::create();
+                        $results_list[$group] = $list_class::create();
                     }
 
                     $results = $class::get(); // all results
