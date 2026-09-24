@@ -145,6 +145,16 @@ class Intelligent404Test extends SapphireTest
         );
     }
 
+    public function testAllowInDevModeIsDeclaredOffByDefault()
+    {
+        // Read the declared default straight off the class static, not through Config: setUp() and
+        // other tests Config::modify() this value, and a config layer on top could mask a changed
+        // default. Off by default means a dev site shows the plain 404 unless a project opts in.
+        $property = new \ReflectionProperty(Intelligent404::class, 'allow_in_dev_mode');
+        $this->assertTrue($property->isStatic());
+        $this->assertFalse($property->getDefaultValue());
+    }
+
     public function testSingleExactMatchRedirects()
     {
         $this->assertRedirectsTo('/gone/about-us', '/company/about-us');

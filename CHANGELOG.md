@@ -31,7 +31,9 @@ Silverstripe 5 and 6 from one line, a test suite, CI, and two fixes. No breaking
 
 ### Added
 
-- A behavioural test suite (20 tests) and GitHub Actions CI across Silverstripe 5 and 6.
+- A behavioural test suite (21 tests) and GitHub Actions CI across Silverstripe 5 and 6.
+  - The declared default of `allow_in_dev_mode` (`false`) is checked on the class itself, so a
+    config override elsewhere in the suite cannot hide a changed default.
 - `Intelligent404::getConfiguredClasses()`: the `data_objects` config with normalised class names,
   as the extension reads it.
 - README: requirements, a version compatibility table, the template variables the module sets
