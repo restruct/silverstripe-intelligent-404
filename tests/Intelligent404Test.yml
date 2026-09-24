@@ -1,0 +1,57 @@
+# Soundex codes of the URL segments below, so a new fixture does not collide by accident:
+#   company C515 · about-us A132 · contact C532 · services S612 · old-news O352
+#   page-not-found P253 · server-error S616 · widget W320 · gadget G323
+SilverStripe\CMS\Model\SiteTree:
+  company:
+    Title: Company
+    URLSegment: company
+  about:
+    Title: About us
+    URLSegment: about-us
+    Parent: =>SilverStripe\CMS\Model\SiteTree.company
+  contact_nested:
+    Title: Contact (company)
+    URLSegment: contact
+    Parent: =>SilverStripe\CMS\Model\SiteTree.company
+  contact_top:
+    Title: Contact
+    URLSegment: contact
+  services:
+    Title: Services
+    URLSegment: services
+  # Same segment as the 404 ErrorPage's own URL, one level down: used to prove that rendering the
+  # error page at its own URL (static error file generation on dev/build) is left alone.
+  notfound_lookalike:
+    Title: Not found lookalike
+    URLSegment: page-not-found
+    Parent: =>SilverStripe\CMS\Model\SiteTree.company
+
+SilverStripe\CMS\Model\RedirectorPage:
+  oldnews:
+    Title: Old news
+    URLSegment: old-news
+    Parent: =>SilverStripe\CMS\Model\SiteTree.company
+    RedirectionType: External
+    ExternalURL: 'https://example.com/'
+
+SilverStripe\ErrorPage\ErrorPage:
+  e404:
+    Title: Page not found
+    URLSegment: page-not-found
+    ErrorCode: 404
+    Content: '<p>Sorry, not found.</p>'
+  e500:
+    Title: Server error
+    URLSegment: server-error
+    ErrorCode: 500
+    Content: '<p>Server error.</p>'
+
+Restruct\Silverstripe\Intelligent404\Tests\Stub\Product:
+  widget:
+    Title: Widget
+    URLSegment: widget
+    InStock: true
+  gadget:
+    Title: Gadget
+    URLSegment: gadget
+    InStock: false
