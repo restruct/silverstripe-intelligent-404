@@ -1,6 +1,6 @@
 # Soundex codes of the URL segments below, so a new fixture does not collide by accident:
-#   company C515 · about-us A132 · contact C532 · services S612 · old-news O352
-#   page-not-found P253 · server-error S616 · widget W320 · gadget G323
+#   company C515 - about-us A132 - contact C532 - services S612 - old-news O435
+#   page-not-found P253 - server-error S616 - widget W323 - gadget G323
 SilverStripe\CMS\Model\SiteTree:
   company:
     Title: Company
