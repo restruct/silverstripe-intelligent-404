@@ -128,6 +128,8 @@ jobs:
               <testsuites>
                   <testsuite name="intelligent404">
                       <directory>vendor/restruct/silverstripe-intelligent-404/tests</directory>
+                      <!-- Playwright specs and their fixtures, run by the Browser tests workflow -->
+                      <exclude>vendor/restruct/silverstripe-intelligent-404/tests/browser</exclude>
                   </testsuite>
                   <testsuite name="consumer">
                       <directory>app/tests</directory>

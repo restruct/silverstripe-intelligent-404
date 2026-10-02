@@ -1,0 +1,8 @@
+---
+Name: i404-browser-fixtures
+---
+# BROWSER-TEST FIXTURE ONLY - copied to the scratch host's app/_config/browser-fixtures/ by the
+# runner (fixture YAML in app/src would never be read). The hosts run in dev mode, where the module
+# does nothing unless this is set.
+Restruct\Silverstripe\Intelligent404\Intelligent404:
+  allow_in_dev_mode: true

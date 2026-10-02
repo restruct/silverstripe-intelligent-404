@@ -13,6 +13,8 @@
         <testsuite name="intelligent404">
             <!-- was <directory>tests</directory>: only valid from the module's own root -->
             <directory>vendor/restruct/silverstripe-intelligent-404/tests</directory>
+            <!-- Playwright specs and their fixtures, run by the Browser tests workflow -->
+            <exclude>vendor/restruct/silverstripe-intelligent-404/tests/browser</exclude>
         </testsuite>
     </testsuites>
 </phpunit>
