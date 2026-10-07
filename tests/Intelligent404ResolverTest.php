@@ -171,6 +171,7 @@ class Intelligent404ResolverTest extends SapphireTest
         $this->assertSame('<p>No longer offered.</p>', $controller->Content);
         $this->assertSame('Gone', $controller->Title);
         $this->assertSame('<p>No longer offered.</p>', (string) $controller->Intelligent404Options);
+        $this->assertSame('', (string) $controller->ContentWithout404Options, 'replaced in both template layouts');
         $this->assertSame('410', $controller->getResponse()->getHeader(Intelligent404StatusMiddleware::STATUS_HEADER));
     }
 

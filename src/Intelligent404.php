@@ -319,7 +319,10 @@ class Intelligent404
         }
 
         $owner = $this->getOwner();
-        $owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($owner->Content);
+        # Replacing means the page's own text shows in NEITHER layout: themes that print $Content, and themes that
+        # print $ContentWithout404Options + $Intelligent404Options (see README, Template variables)
+//        $owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($owner->Content);
+        $owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($resolution->replaceContent ? '' : $owner->Content);
         $owner->Intelligent404Options = DBHTMLVarchar::create()->setValue($resolution->content);
         $owner->Content = $resolution->replaceContent ? $resolution->content : $owner->Content . $resolution->content;
         if ($resolution->title !== null) {

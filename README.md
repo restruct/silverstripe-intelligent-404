@@ -149,7 +149,9 @@ SilverStripe\ErrorPage\ErrorPageController:
 ```
 
 A response renders through your normal ErrorPage template, so themes keep working; only `$Content`
-(and `$Title`, if given) change, and `$Intelligent404Options` holds the resolver's HTML. A redirect
+(and `$Title`, if given) change, and `$Intelligent404Options` holds the resolver's HTML. With
+`replaceContent` true, `$ContentWithout404Options` is empty, so the page's own text disappears in both
+template layouts (see Template variables). A redirect
 back to the requested URL is refused (loop guard).
 
 **The status code.** `ErrorPageController` sets its own error code after rendering, so a status set
