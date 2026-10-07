@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.2.0 (unreleased)
+## 4.2.0 (2026-10-07)
 
 Additive: nothing changes until a project opts in or adds a resolver.
 
