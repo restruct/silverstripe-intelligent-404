@@ -1,0 +1,10 @@
+---
+Name: intelligent404-middleware
+---
+# Applies a resolver's status code (e.g. 410 Gone) after ErrorPageController has set its own: see
+# Intelligent404StatusMiddleware. Does nothing for a response without its marker header.
+SilverStripe\Core\Injector\Injector:
+  SilverStripe\Control\Director:
+    properties:
+      Middlewares:
+        Intelligent404StatusMiddleware: '%$Restruct\Silverstripe\Intelligent404\Intelligent404StatusMiddleware'

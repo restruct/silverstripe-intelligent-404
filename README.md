@@ -98,7 +98,76 @@ Restruct\Silverstripe\Intelligent404\Intelligent404:
   allow_in_dev_mode: true             # allow this to work in dev mode (default false)
   redirect_on_single_match: false     # do not auto-redirect if one exact match is found (default true)
   exclude_hidden_from_search: false   # also match records with ShowInSearch = 0 (default true)
+  redirect_on_normalised_match: true  # 301 to the page at the URLSegmentFilter-cleaned path (default false)
 ```
+
+`redirect_on_normalised_match` runs every segment of the requested path through `URLSegmentFilter`
+and redirects (301, querystring kept) to the live page at exactly the resulting path, if the visitor
+may view it. It catches URLs that only differ from a real page by what the filter changes: case
+(`/About-Us` to `/about-us`), underscores, or a curly apostrophe in an old segment (`our-team’s-results`
+to `our-teams-results`).
+Silverstripe cannot redirect those itself, because it looks pages up by the percent-encoded segment.
+It is independent of `redirect_on_single_match` and runs before the fuzzy matching.
+
+## Resolvers: your own 404 decisions
+
+Before the fuzzy matching, the module asks resolvers what to do with the 404. A resolver is an
+extension on `ErrorPageController` implementing `updateIntelligent404Resolution()`. It gets one
+`Intelligent404Resolution` object (the request's decoded `path`, without slashes, and its `query`) and
+either redirects or answers with its own content. The first resolver that does either wins; check
+`isResolved()` and return if another one got there first. A resolved 404 skips the fuzzy matching.
+
+```php
+use Restruct\Silverstripe\Intelligent404\Intelligent404Resolution;
+use SilverStripe\Core\Extension;
+
+class RetiredProductResolver extends Extension
+{
+    public function updateIntelligent404Resolution(Intelligent404Resolution $resolution)
+    {
+        if ($resolution->isResolved() || !preg_match('#^products/(.+)$#', $resolution->path, $m)) {
+            return;
+        }
+        $product = Product::get()->filter('OldSlug', $m[1])->first();
+        if ($product && $product->Successor()->exists()) {
+            $resolution->redirect($product->Successor()->Link());            // 301 by default
+        } elseif ($product) {
+            $resolution->respond(
+                $product->renderWith('RetiredProductNotice'),                // HTML for the page
+                410,                                                         // status (null keeps 404)
+                true,                                                        // replace the page's Content
+                'No longer available'                                        // page title (null keeps it)
+            );
+        }
+    }
+}
+```
+
+```yml
+SilverStripe\ErrorPage\ErrorPageController:
+  extensions:
+    - RetiredProductResolver
+```
+
+A response renders through your normal ErrorPage template, so themes keep working; only `$Content`
+(and `$Title`, if given) change, and `$Intelligent404Options` holds the resolver's HTML. With
+`replaceContent` true, `$ContentWithout404Options` is empty, so the page's own text disappears in both
+template layouts (see Template variables).
+
+**Redirect targets.** `redirect()` accepts 301, 302, 303, 307 and 308 (anything else throws an
+`InvalidArgumentException`, unless the 404 was already resolved: a later call is then ignored). A
+target must be an absolute `http(s)://` URL or a path starting with ONE slash, without spaces or control
+characters (browsers strip a tab or newline anywhere in a URL, so `/<tab>/host` would become `//host`);
+protocol-relative (`//host`) and backslash (`/\host`, `\\host`) targets are refused, because the
+`path` a resolver gets is decoded and `'/' . $rest` could otherwise send the visitor off-site. A target
+on this site that points back at the requested URL is refused too (loop guard). That check compares
+the path below the site's base URL, case-sensitively, so a redirect that only fixes the case, or one to
+the same path on another domain, goes through. A refused redirect leaves the 404 to the fuzzy matching.
+
+**The status code.** `ErrorPageController` sets its own error code after rendering, so a status set
+while the page renders would always end up as 404. The module leaves an `X-Intelligent404-Status`
+marker header instead, and `Intelligent404StatusMiddleware` (registered on `Director`) swaps the
+status and removes the marker. It only turns a 404 into another 4xx.
 
 ## Adding other DataObjects
 

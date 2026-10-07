@@ -8,15 +8,18 @@ use SilverStripe\CMS\Model\VirtualPage;
 use SilverStripe\Model\List\ArrayList; # Silverstripe 6
 use SilverStripe\ORM\ArrayList as LegacyArrayList; # Silverstripe 5 (moved to SilverStripe\Model\List in 6)
 use SilverStripe\Control\Director;
+use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Extension;
+use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ErrorPage\ErrorPage;
 use SilverStripe\ErrorPage\ErrorPageController;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\FieldType\DBHTMLVarchar;
+use SilverStripe\View\Parsers\URLSegmentFilter;
 
 /**
  * SilverStripe Intelligent 404
@@ -42,6 +45,14 @@ class Intelligent404
      * auto-redirect if only one exact match is found
      */
     private static $redirect_on_single_match = true;
+
+    /**
+     * @config
+     * 301 to the live page whose path equals the requested path after running each segment through
+     * URLSegmentFilter (case, underscores, curly apostrophes, ...). Independent of redirect_on_single_match.
+     * Off by default so a minor release changes nothing until a project opts in.
+     */
+    private static $redirect_on_normalised_match = false;
 
     /**
      * @config
@@ -86,6 +97,12 @@ class Intelligent404
         }
 
         if ( !Director::isDev() || Config::inst()->get(self::class, 'allow_in_dev_mode') ) {
+            # Resolvers first (4.2): the project's own, through the hook, then the built-in normalised match.
+            # A resolved 404 skips the fuzzy matching below.
+            if ($request && $this->runIntelligent404Resolvers((string) $request)) {
+                return;
+            }
+
             # Use the guarded $request from above: REQUEST_URI is absent when the error page controller
             # runs outside a web request (CLI), and reading it unguarded raised an "Undefined array key" warning
 //            $extract = preg_match('/^([a-z0-9\.\_\-\/]+)/i', (string) $_SERVER['REQUEST_URI'], $rawString);
@@ -263,15 +280,174 @@ class Intelligent404
         return ltrim((string) $class, '\\');
     }
 
+    /**
+     * Run the resolvers for this request and act on the first resolution: redirect (throws), or put the
+     * resolver's content on the error page and mark the status for Intelligent404StatusMiddleware.
+     *
+     * Resolvers are extensions on ErrorPageController implementing
+     * `updateIntelligent404Resolution(Intelligent404Resolution $resolution)`; they run in extension order and the
+     * first one that redirects or responds wins (Intelligent404Resolution ignores later calls). The built-in
+     * normalised match runs after them, when enabled and nothing resolved the request yet.
+     *
+     * @param string $requestUri the original REQUEST_URI (path + querystring)
+     * @return bool true when the 404 was resolved with content (a redirect throws instead)
+     */
+    protected function runIntelligent404Resolvers(string $requestUri): bool
+    {
+        [$path, $query] = $this->intelligent404PathAndQuery($requestUri);
+        if ($path === '') {
+            return false;
+        }
+
+        $resolution = new Intelligent404Resolution($path, $query);
+        $this->getOwner()->extend('updateIntelligent404Resolution', $resolution);
+
+        if (!$resolution->isResolved() && Config::inst()->get(self::class, 'redirect_on_normalised_match')) {
+            $this->resolveIntelligent404NormalisedMatch($resolution);
+        }
+
+        if ($resolution->redirectTo !== null) {
+            if (!$this->isSafeIntelligent404Target($resolution->redirectTo, $path)) {
+                return false;
+            }
+            $this->RedirectToPage($resolution->redirectTo, $resolution->redirectCode);
+        }
+
+        if ($resolution->content === null) {
+            return false;
+        }
+
+        $owner = $this->getOwner();
+        # Replacing means the page's own text shows in NEITHER layout: themes that print $Content, and themes that
+        # print $ContentWithout404Options + $Intelligent404Options (see README, Template variables)
+//        $owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($owner->Content);
+        $owner->ContentWithout404Options = DBHTMLVarchar::create()->setValue($resolution->replaceContent ? '' : $owner->Content);
+        $owner->Intelligent404Options = DBHTMLVarchar::create()->setValue($resolution->content);
+        $owner->Content = $resolution->replaceContent ? $resolution->content : $owner->Content . $resolution->content;
+        if ($resolution->title !== null) {
+            # On the record, in memory only (never written): the controller reads Title through to its record,
+            # so a value set on the controller itself is not what the template sees
+            $owner->data()->Title = $resolution->title;
+        }
+        if ($resolution->statusCode) {
+            $owner->getResponse()->addHeader(Intelligent404StatusMiddleware::STATUS_HEADER, (string) $resolution->statusCode);
+        }
+
+        return true;
+    }
+
+    /**
+     * The requested path (base-relative, URL-decoded, no leading/trailing slash) and querystring.
+     *
+     * The path comes from the current HTTPRequest, which Director registers for a real request and which is
+     * already relative to the site's base URL (an install in a subfolder included). Without one (the hook fired
+     * outside a web request), REQUEST_URI with the base URL stripped. That fallback is split by hand rather than
+     * with parse_url(), which gives up on a raw REQUEST_URI like `/a:1` or `//x/y` (in a real request core's
+     * HTTPRequestBuilder has already reduced `//x/y` to `x/y`).
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function intelligent404PathAndQuery(string $requestUri): array
+    {
+        $query = '';
+        $queryPos = strpos($requestUri, '?');
+        if ($queryPos !== false) {
+            $query = substr($requestUri, $queryPos + 1);
+            $requestUri = substr($requestUri, 0, $queryPos);
+        }
+        $requestUri = (string) strtok($requestUri, '#');
+
+        $injector = Injector::inst();
+        $current = $injector->has(HTTPRequest::class) ? $injector->get(HTTPRequest::class) : null;
+        if ($current instanceof HTTPRequest && $current->getURL() !== '') {
+            $path = $current->getURL();
+        } else {
+            $path = $requestUri;
+            $base = rtrim((string) Director::baseURL(), '/');
+            if ($base !== '' && str_starts_with($path, $base . '/')) {
+                $path = substr($path, strlen($base));
+            }
+        }
+
+        return [trim(rawurldecode($path), '/'), $query];
+    }
+
+    /**
+     * Whether a resolver's redirect target may be sent: an absolute http(s) URL or a site path starting with
+     * ONE slash, and not the URL that 404'd (loop guard).
+     *
+     * Refused: any control character or space (browsers strip tab, CR and LF anywhere in a URL, so `/<tab>/host`
+     * becomes `//host`; a valid Location never needs one), protocol-relative (`//host`) and backslash forms
+     * (`/\host`, which browsers treat as `//host`). The
+     * path reaches resolvers URL-decoded, so `/old/%2F%2Fevil.example` arrives as `old//evil.example`, and a
+     * resolver building `'/' . $rest` would otherwise send the visitor off-site.
+     * The loop guard compares base-relative paths case-sensitively and only for targets on this site, so a
+     * domain move to the same path, or a redirect that only fixes the case, still goes through.
+     */
+    protected function isSafeIntelligent404Target(string $target, string $path): bool
+    {
+//        $target = trim($target);
+        # No trim(): it strips edge whitespace and NUL from what is checked, while the untrimmed target is what gets
+        # sent. A target with any control character or space, at the edges too, is refused instead
+        if (preg_match('/[\x00-\x20\x7f]/', $target)) {
+            return false;
+        }
+        if (preg_match('#^(//|/\\\\|\\\\)#', $target) || !preg_match('#^(https?://|/)#i', $target)) {
+            return false;
+        }
+        if (Director::is_site_url($target)) {
+            $relative = (string) strtok(Director::makeRelative($target), '?#');
+            if (trim(rawurldecode($relative), '/') === $path) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Built-in resolver (`redirect_on_normalised_match`): run every path segment through URLSegmentFilter, and
+     * 301 to the live page at the resulting path if exactly that page exists and the visitor may see it.
+     *
+     * Catches URLs that only differ from a real page by characters the filter removes or converts: case,
+     * underscores, or a curly apostrophe left in an old URL segment (`our-team’s-results` -> `our-teams-results`).
+     * Silverstripe core cannot redirect those itself: it looks pages up by the percent-encoded segment, which
+     * never equals a stored segment with a raw multibyte character, in the live table or in the version history.
+     */
+    protected function resolveIntelligent404NormalisedMatch(Intelligent404Resolution $resolution): void
+    {
+        $filter = URLSegmentFilter::create();
+        $segments = array_map(fn ($segment) => $filter->filter($segment), explode('/', $resolution->path));
+        if (in_array('', $segments, true)) {
+            return; // a segment with nothing left in it: no page can match
+        }
+        $normalised = implode('/', $segments);
+        if ($normalised === $resolution->path) {
+            return; // nothing to normalise: the page simply does not exist
+        }
+
+        $page = SiteTree::get_by_link($normalised);
+        if (!$page || $page instanceof ErrorPage || !$page->canView()) {
+            return;
+        }
+        # get_by_link() also resolves a page through a parent with a matching segment; insist on the exact path
+        if (trim(Director::makeRelative($page->Link()), '/') !== $normalised) {
+            return;
+        }
+
+        $resolution->redirect($page->Link() . ($resolution->query !== '' ? '?' . $resolution->query : ''), 301, 'normalised-match');
+    }
+
     /*
      * Internal redirect function
      * @param string
      * @return 301 response / redirect
      */
-    private function RedirectToPage($url) # : never (never-returns (die/throw method) return type, limits to PHP8.1+)
+//    private function RedirectToPage($url) # : never (never-returns (die/throw method) return type, limits to PHP8.1+)
+    private function RedirectToPage($url, int $code = 301) # : never (never-returns (die/throw method) return type, limits to PHP8.1+)
     {
         $response = HTTPResponse::create();
-        $response->redirect($url, 301);
+//        $response->redirect($url, 301);
+        $response->redirect($url, $code);
         throw new HTTPResponse_Exception($response);
     }
 }
