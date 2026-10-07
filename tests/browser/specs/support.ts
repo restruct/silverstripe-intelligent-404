@@ -7,7 +7,12 @@ import { test as base, expect, type Browser, type BrowserContext, type Page, typ
 // scratch hosts have no theme, so pages and the 404 render with framework's plain fallback
 // template, which still prints the ErrorPage $Content the module appends its list to.
 
-const NOT_FOUND_TEXT = 'Failed to load resource: the server responded with a status of 404 (Not Found)';
+// const NOT_FOUND_TEXT = 'Failed to load resource: the server responded with a status of 404 (Not Found)';
+// 4.2: a resolver may answer 410 Gone (resolver.spec.ts), whose document logs the same kind of message
+const ERROR_DOCUMENT_TEXTS = [
+    'Failed to load resource: the server responded with a status of 404 (Not Found)',
+    'Failed to load resource: the server responded with a status of 410 (Gone)',
+];
 
 /**
  * test, extended with an automatic console guard: every spec fails if a page logs a console error
@@ -43,7 +48,8 @@ export { expect };
 /** Collect a page's console errors into `errors`, leaving out a 404 document's own load message. */
 export function guardPage(page: Page, errors: string[], documents404 = new Set<string>()): void {
     page.on('response', (r) => {
-        if (r.request().isNavigationRequest() && r.status() === 404) {
+//        if (r.request().isNavigationRequest() && r.status() === 404) {
+        if (r.request().isNavigationRequest() && (r.status() === 404 || r.status() === 410)) {
             documents404.add(r.url());
         }
     });
@@ -51,7 +57,8 @@ export function guardPage(page: Page, errors: string[], documents404 = new Set<s
         if (msg.type() !== 'error') {
             return;
         }
-        if (msg.text() === NOT_FOUND_TEXT && documents404.has(msg.location().url)) {
+//        if (msg.text() === NOT_FOUND_TEXT && documents404.has(msg.location().url)) {
+        if (ERROR_DOCUMENT_TEXTS.includes(msg.text()) && documents404.has(msg.location().url)) {
             return;
         }
         errors.push(`console.error: ${msg.text()} (${msg.location().url})`);

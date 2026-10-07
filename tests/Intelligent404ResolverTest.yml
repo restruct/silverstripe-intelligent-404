@@ -1,0 +1,23 @@
+# Own fixture (not Intelligent404Test.yml) so these pages cannot collide with the fuzzy-matching tests.
+SilverStripe\CMS\Model\SiteTree:
+  news:
+    Title: News
+    URLSegment: news
+  diplomas:
+    Title: Three welding diplomas
+    URLSegment: drie-lasdiplomas
+    Parent: =>SilverStripe\CMS\Model\SiteTree.news
+  about:
+    Title: About us
+    URLSegment: about-us
+  # Never published in setUp(): proves a page only in draft is no redirect target
+  draftonly:
+    Title: Draft only
+    URLSegment: draft-only
+
+SilverStripe\ErrorPage\ErrorPage:
+  e404:
+    Title: Page not found
+    URLSegment: page-not-found
+    ErrorCode: 404
+    Content: '<p>Sorry, not found.</p>'

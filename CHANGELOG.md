@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.2.0 (unreleased)
+
+Additive: nothing changes until a project opts in or adds a resolver.
+
+### Added
+
+- **Resolver hook `updateIntelligent404Resolution`.** Extensions on `ErrorPageController` get an
+  `Intelligent404Resolution` (decoded path + querystring) before the fuzzy matching, and can redirect
+  (any 3xx) or answer with their own content, title and status code (e.g. 410 Gone) on the normal
+  ErrorPage template. The first resolution wins and skips the fuzzy matching. See README, Resolvers.
+- **`redirect_on_normalised_match`** (default `false`): 301 to the live page at the path you get by
+  running each segment through `URLSegmentFilter`; the querystring is kept. Catches case,
+  underscores and multibyte characters left in old URL segments, which core cannot redirect.
+- **`Intelligent404StatusMiddleware`**, registered on `Director`: applies a resolver's status code,
+  which `ErrorPageController::handleRequest()` would otherwise overwrite with 404.
+
+### Changed
+
+- The internal redirect accepts a status code (still 301 for the module's own redirects).
+- Browser-test console guard also accepts a 410 document's own load message.
+
 ## 4.1.0 (2026-09-25)
 
 Silverstripe 5 and 6 from one line, a security fix, a test suite, CI, and two fixes. The security

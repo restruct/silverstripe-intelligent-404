@@ -6,3 +6,11 @@ Name: i404-browser-fixtures
 # does nothing unless this is set.
 Restruct\Silverstripe\Intelligent404\Intelligent404:
   allow_in_dev_mode: true
+  # 4.2: the built-in normalised match (redirect.spec.ts "normalised" tests). The older specs use URLs whose
+  # segments are already clean, so this changes nothing for them.
+  redirect_on_normalised_match: true
+
+# 4.2: a project-side resolver answering 410 Gone with its own content (resolver.spec.ts)
+SilverStripe\ErrorPage\ErrorPageController:
+  extensions:
+    - Restruct\I4bBrowser\I4bGoneResolver
