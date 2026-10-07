@@ -3,13 +3,18 @@ SilverStripe\CMS\Model\SiteTree:
   news:
     Title: News
     URLSegment: news
-  diplomas:
-    Title: Three welding diplomas
-    URLSegment: drie-lasdiplomas
+  results:
+    Title: Our team's results
+    URLSegment: our-teams-results
     Parent: =>SilverStripe\CMS\Model\SiteTree.news
   about:
     Title: About us
     URLSegment: about-us
+  # Published but only for logged-in members: never a redirect target for an anonymous visitor
+  membersonly:
+    Title: Members only
+    URLSegment: members-only
+    CanViewType: LoggedInUsers
   # Never published in setUp(): proves a page only in draft is no redirect target
   draftonly:
     Title: Draft only

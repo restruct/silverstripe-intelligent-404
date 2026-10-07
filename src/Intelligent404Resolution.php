@@ -5,8 +5,8 @@ namespace Restruct\Silverstripe\Intelligent404;
 /**
  * What a resolver decided for a 404, passed by reference through the `updateIntelligent404Resolution` hook.
  *
- * A resolver does ONE of two things, and the first resolver that does wins (later ones see isResolved() and
- * should return; the built-in fuzzy matching is skipped):
+ * A resolver does ONE of two things, and the first resolver that does wins: later redirect()/respond() calls are
+ * ignored (check isResolved() to skip work), and the built-in fuzzy matching is skipped:
  *  - redirect(): send the visitor elsewhere (301 by default), e.g. a page that moved;
  *  - respond(): keep the visitor on the error page, with its own content and optionally another status code,
  *    e.g. 410 Gone with a "no longer available" text and alternatives. The page still renders through the
@@ -52,11 +52,25 @@ class Intelligent404Resolution
         return $this->redirectTo !== null || $this->content !== null;
     }
 
+    /** Status codes redirect() accepts */
+    public const REDIRECT_CODES = [301, 302, 303, 307, 308];
+
     /**
-     * Send the visitor to $url. The original querystring is NOT appended here; pass it in $url if wanted.
+     * Send the visitor to $url: an absolute http(s) URL, or a site path starting with ONE slash (protocol-relative
+     * and backslash targets are refused when acted on, as is the URL that 404'd). The original querystring is
+     * NOT appended here; pass it in $url if wanted. Ignored when an earlier resolver already resolved the 404.
+     *
+     * @throws \InvalidArgumentException for a status code that is not a redirect (see REDIRECT_CODES)
      */
     public function redirect(string $url, int $code = 301, ?string $resolvedBy = null): static
     {
+        if (!in_array($code, self::REDIRECT_CODES, true)) {
+            throw new \InvalidArgumentException("Intelligent404Resolution::redirect(): {$code} is not a redirect status");
+        }
+        # First resolution wins, whatever the order of redirect() and respond() calls
+        if ($this->isResolved()) {
+            return $this;
+        }
         $this->redirectTo = $url;
         $this->redirectCode = $code;
         $this->resolvedBy = $resolvedBy;
@@ -65,9 +79,13 @@ class Intelligent404Resolution
 
     /**
      * Keep the visitor on the error page with this content, and optionally another status code and title.
+     * Ignored when an earlier resolver already resolved the 404.
      */
     public function respond(string $html, ?int $statusCode = null, bool $replaceContent = false, ?string $title = null, ?string $resolvedBy = null): static
     {
+        if ($this->isResolved()) {
+            return $this;
+        }
         $this->content = $html;
         $this->statusCode = $statusCode;
         $this->replaceContent = $replaceContent;

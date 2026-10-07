@@ -103,8 +103,9 @@ Restruct\Silverstripe\Intelligent404\Intelligent404:
 
 `redirect_on_normalised_match` runs every segment of the requested path through `URLSegmentFilter`
 and redirects (301, querystring kept) to the live page at exactly the resulting path, if the visitor
-may view it. It catches URLs that only differ from a real page by what the filter changes: case,
-underscores, or a curly apostrophe in an old segment (`drie-lasdiploma’s` to `drie-lasdiplomas`).
+may view it. It catches URLs that only differ from a real page by what the filter changes: case
+(`/About-Us` to `/about-us`), underscores, or a curly apostrophe in an old segment (`our-team’s-results`
+to `our-teams-results`).
 Silverstripe cannot redirect those itself, because it looks pages up by the percent-encoded segment.
 It is independent of `redirect_on_single_match` and runs before the fuzzy matching.
 
@@ -151,8 +152,15 @@ SilverStripe\ErrorPage\ErrorPageController:
 A response renders through your normal ErrorPage template, so themes keep working; only `$Content`
 (and `$Title`, if given) change, and `$Intelligent404Options` holds the resolver's HTML. With
 `replaceContent` true, `$ContentWithout404Options` is empty, so the page's own text disappears in both
-template layouts (see Template variables). A redirect
-back to the requested URL is refused (loop guard).
+template layouts (see Template variables).
+
+**Redirect targets.** `redirect()` accepts 301, 302, 303, 307 and 308 (anything else throws an
+`InvalidArgumentException`). A target must be an absolute `http(s)://` URL or a path starting with ONE
+slash; protocol-relative (`//host`) and backslash (`/\host`, `\\host`) targets are refused, because the
+`path` a resolver gets is decoded and `'/' . $rest` could otherwise send the visitor off-site. A target
+on this site that points back at the requested URL is refused too (loop guard). That check compares
+the path below the site's base URL, case-sensitively, so a redirect that only fixes the case, or one to
+the same path on another domain, goes through. A refused redirect leaves the 404 to the fuzzy matching.
 
 **The status code.** `ErrorPageController` sets its own error code after rendering, so a status set
 while the page renders would always end up as 404. The module leaves an `X-Intelligent404-Status`
