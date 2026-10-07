@@ -341,8 +341,9 @@ class Intelligent404
      *
      * The path comes from the current HTTPRequest, which Director registers for a real request and which is
      * already relative to the site's base URL (an install in a subfolder included). Without one (the hook fired
-     * outside a web request), REQUEST_URI with the base URL stripped. Split by hand rather than parse_url(),
-     * which gives up on paths like `/a:1` or `//x/y`.
+     * outside a web request), REQUEST_URI with the base URL stripped. That fallback is split by hand rather than
+     * with parse_url(), which gives up on a raw REQUEST_URI like `/a:1` or `//x/y` (in a real request core's
+     * HTTPRequestBuilder has already reduced `//x/y` to `x/y`).
      *
      * @return array{0: string, 1: string}
      */
@@ -375,7 +376,9 @@ class Intelligent404
      * Whether a resolver's redirect target may be sent: an absolute http(s) URL or a site path starting with
      * ONE slash, and not the URL that 404'd (loop guard).
      *
-     * Refused: protocol-relative (`//host`) and backslash forms (`/\host`, which browsers treat as `//host`). The
+     * Refused: any control character or space (browsers strip tab, CR and LF anywhere in a URL, so `/<tab>/host`
+     * becomes `//host`; a valid Location never needs one), protocol-relative (`//host`) and backslash forms
+     * (`/\host`, which browsers treat as `//host`). The
      * path reaches resolvers URL-decoded, so `/old/%2F%2Fevil.example` arrives as `old//evil.example`, and a
      * resolver building `'/' . $rest` would otherwise send the visitor off-site.
      * The loop guard compares base-relative paths case-sensitively and only for targets on this site, so a
@@ -383,7 +386,12 @@ class Intelligent404
      */
     protected function isSafeIntelligent404Target(string $target, string $path): bool
     {
-        $target = trim($target);
+//        $target = trim($target);
+        # No trim(): it strips edge whitespace and NUL from what is checked, while the untrimmed target is what gets
+        # sent. A target with any control character or space, at the edges too, is refused instead
+        if (preg_match('/[\x00-\x20\x7f]/', $target)) {
+            return false;
+        }
         if (preg_match('#^(//|/\\\\|\\\\)#', $target) || !preg_match('#^(https?://|/)#i', $target)) {
             return false;
         }

@@ -262,12 +262,45 @@ class Intelligent404ResolverTest extends SapphireTest
             ResolverStub::$behaviour = [fn (Intelligent404Resolution $r) => $r->redirect($target)];
             $this->assertNull($this->redirectFor('/old/thing'), "refused: {$target}");
         }
+
+        # Browsers strip tab/CR/LF anywhere in a URL: '/<tab>/evil.example' is requested as //evil.example. Both
+        # straight targets and the README-style resolver ('/' . $rest of the decoded path) must be refused
+        foreach (["/\t/evil.example", "/\n/evil.example", "/\r\\evil.example", "/ok\x00", "/a b", " //evil.example", "\t/ok"] as $target) {
+            ResolverStub::$behaviour = [fn (Intelligent404Resolution $r) => $r->redirect($target)];
+            $this->assertNull($this->redirectFor('/old/thing'), 'refused: ' . json_encode($target));
+        }
+        ResolverStub::$behaviour = [fn (Intelligent404Resolution $r) => $r->redirect('/' . substr($r->path, strlen('old/')))];
+        $this->assertNull($this->redirectFor('/old/%09/evil.example'), 'decoded tab then slash');
+        $this->assertNull($this->redirectFor('/old/%09%5Cevil.example'), 'decoded tab then backslash');
+        # Control: the same resolver with a harmless rest still redirects
+        $this->assertRedirectPath($this->redirectFor('/old/about-us'), '/about-us');
+    }
+
+    public function testFirstRespondWinsOverALaterRespond()
+    {
+        ResolverStub::$behaviour = [
+            fn (Intelligent404Resolution $r) => $r->respond('<p>first</p>', 410, true, 'First'),
+            fn (Intelligent404Resolution $r) => $r->respond('<p>second</p>', 451, true, 'Second'),
+        ];
+        $controller = $this->hit('/old/thing');
+        $this->assertSame('<p>first</p>', (string) $controller->Content);
+        $this->assertSame('First', $controller->Title);
+        $this->assertSame('410', $controller->getResponse()->getHeader(Intelligent404StatusMiddleware::STATUS_HEADER));
     }
 
     public function testRedirectRejectsANonRedirectStatus()
     {
         $this->expectException(\InvalidArgumentException::class);
         (new Intelligent404Resolution('x'))->redirect('/y', 410);
+    }
+
+    public function testABadRedirectCodeAfterAResolutionIsIgnored()
+    {
+        # A later resolver's mistake must not turn an already-answered 404 into a 500
+        $resolution = (new Intelligent404Resolution('x'))->redirect('/y', 302);
+        $resolution->redirect('/z', 410);
+        $this->assertSame('/y', $resolution->redirectTo);
+        $this->assertSame(302, $resolution->redirectCode);
     }
 
     public function testContentResolutionReplacesFuzzyOptionsAndMarksTheStatus()

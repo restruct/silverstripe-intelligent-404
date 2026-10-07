@@ -11,7 +11,7 @@ Additive: nothing changes until a project opts in or adds a resolver.
   (301, 302, 303, 307 or 308; anything else throws) or answer with their own content, title and
   status code (e.g. 410 Gone) on the normal ErrorPage template. The first resolution wins (a later
   `redirect()` or `respond()` is ignored) and skips the fuzzy matching. Unsafe targets are refused:
-  protocol-relative or backslash URLs, relative paths, and a URL on this site equal to the requested
+  protocol-relative or backslash URLs, any space or control character, relative paths, and a URL on this site equal to the requested
   one (compared below the base URL, so subfolder installs work). See README, Resolvers.
 - **`redirect_on_normalised_match`** (default `false`): 301 to the live page at the path you get by
   running each segment through `URLSegmentFilter`; the querystring is kept. Catches case,

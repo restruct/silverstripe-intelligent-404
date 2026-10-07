@@ -155,8 +155,10 @@ A response renders through your normal ErrorPage template, so themes keep workin
 template layouts (see Template variables).
 
 **Redirect targets.** `redirect()` accepts 301, 302, 303, 307 and 308 (anything else throws an
-`InvalidArgumentException`). A target must be an absolute `http(s)://` URL or a path starting with ONE
-slash; protocol-relative (`//host`) and backslash (`/\host`, `\\host`) targets are refused, because the
+`InvalidArgumentException`, unless the 404 was already resolved: a later call is then ignored). A
+target must be an absolute `http(s)://` URL or a path starting with ONE slash, without spaces or control
+characters (browsers strip a tab or newline anywhere in a URL, so `/<tab>/host` would become `//host`);
+protocol-relative (`//host`) and backslash (`/\host`, `\\host`) targets are refused, because the
 `path` a resolver gets is decoded and `'/' . $rest` could otherwise send the visitor off-site. A target
 on this site that points back at the requested URL is refused too (loop guard). That check compares
 the path below the site's base URL, case-sensitively, so a redirect that only fixes the case, or one to

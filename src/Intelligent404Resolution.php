@@ -60,16 +60,17 @@ class Intelligent404Resolution
      * and backslash targets are refused when acted on, as is the URL that 404'd). The original querystring is
      * NOT appended here; pass it in $url if wanted. Ignored when an earlier resolver already resolved the 404.
      *
-     * @throws \InvalidArgumentException for a status code that is not a redirect (see REDIRECT_CODES)
+     * @throws \InvalidArgumentException for a status code that is not a redirect (see REDIRECT_CODES), unless the
+     *   404 was already resolved: a later resolver's bad call is then ignored like any other, not turned into a 500
      */
     public function redirect(string $url, int $code = 301, ?string $resolvedBy = null): static
     {
-        if (!in_array($code, self::REDIRECT_CODES, true)) {
-            throw new \InvalidArgumentException("Intelligent404Resolution::redirect(): {$code} is not a redirect status");
-        }
         # First resolution wins, whatever the order of redirect() and respond() calls
         if ($this->isResolved()) {
             return $this;
+        }
+        if (!in_array($code, self::REDIRECT_CODES, true)) {
+            throw new \InvalidArgumentException("Intelligent404Resolution::redirect(): {$code} is not a redirect status");
         }
         $this->redirectTo = $url;
         $this->redirectCode = $code;
