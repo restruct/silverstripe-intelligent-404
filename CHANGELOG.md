@@ -1,6 +1,6 @@
 # Changelog
 
-## 4.2.1 (unreleased)
+## 4.2.1 (2026-10-08)
 
 ### Fixed
 
