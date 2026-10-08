@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.2.1 (unreleased)
+
+### Fixed
+
+- **The suggestion list gets a valid CSS class** (#4). `<ul class="404options">` could not be styled
+  with `.404options`, which is not a valid selector because it starts with a digit. The list is now
+  `<ul class="404options intelligent404-options">`: style `.intelligent404-options`. The old class is
+  kept, so themes that already target it (as `ul[class~="404options"]`) are unaffected. A theme that
+  overrides `Intelligent404Options.ss` keeps its own markup and needs no change.
+
 ## 4.2.0 (2026-10-07)
 
 Additive: nothing changes until a project opts in or adds a resolver.

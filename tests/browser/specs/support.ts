@@ -93,7 +93,10 @@ export async function redirectChain(response: Response): Promise<Array<[number, 
 /**
  * The module's suggestion links on a 404 page. Its list has the class "404options", which starts
  * with a digit, so ".404options" is not a valid CSS selector; an attribute selector matches it.
+ * Since #4 the list also carries the valid class "intelligent404-options", which is what themes are
+ * told to style, so the specs select on that. The unit suite checks the old class is still there.
  */
 export function suggestions(page: Page) {
-    return page.locator('ul[class~="404options"] li a');
+    // return page.locator('ul[class~="404options"] li a');
+    return page.locator('ul.intelligent404-options li a');
 }
