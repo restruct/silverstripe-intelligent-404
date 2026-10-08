@@ -240,6 +240,11 @@ To place the options yourself, render `$ContentWithout404Options` and `$Intellig
 instead of `$Content` in your ErrorPage template. Override `Intelligent404Options.ss` in your theme
 to change their markup; the heading is translatable (`Intelligent404.OptionsHeader`).
 
+Style the list through its class `intelligent404-options`. It also keeps its original class
+`404options` so existing themes still match, but that one starts with a digit: `.404options` is not a
+valid CSS selector (browsers drop the rule, `querySelector` throws), so it can only be reached as
+`ul[class~="404options"]`. Prefer the new class in new CSS and JavaScript.
+
 ## Running the tests
 
 The module cannot be tested on its own: it needs a host Silverstripe project with `silverstripe/recipe-cms`

@@ -216,6 +216,16 @@ class Intelligent404Test extends SapphireTest
         $this->assertSame('contact', $controller->SearchQuery);
     }
 
+    public function testOptionsListCarriesAValidCssClassAndKeepsTheOldOne()
+    {
+        $options = (string) $this->hit('/gone/contact')->Intelligent404Options;
+
+        // "404options" starts with a digit, so ".404options" is not a valid CSS selector (#4).
+        // "intelligent404-options" is the one to style; the old class stays for existing themes.
+        $this->assertMatchesRegularExpression('/<ul class="(?:[^"]* )?intelligent404-options(?: [^"]*)?">/', $options);
+        $this->assertMatchesRegularExpression('/<ul class="(?:[^"]* )?404options(?: [^"]*)?">/', $options);
+    }
+
     public function testSearchQueryIsSanitised()
     {
         // Dashes and underscores become spaces. "about_us" soundex()es to the about-us page, and
