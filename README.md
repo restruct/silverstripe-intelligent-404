@@ -1,32 +1,74 @@
-# Intelligent 404 Redirector for SilverStripe
+# Intelligent 404 for Silverstripe
+
+When a visitor hits a 404, send them to the page they meant. The last segment of the missing URL is
+matched against every page in the site tree, exactly and by sound: one match gets a 301 redirect,
+several are listed on the error page ("Were you looking for one of the following pages?"). Other
+records with a `Link()`, such as products, can be matched too, and your own resolvers can redirect
+or answer with a 410 before any of that. For Silverstripe 5 and 6.
 
 *Maintained by [Restruct](https://github.com/restruct). If this module saves you time, you can
 [support ongoing maintenance](https://github.com/sponsors/restruct).*
 
-### Forked here because the [original module](https://github.com/axllent/silverstripe-intelligent-404) is no longer actively maintained.
+Forked here because the [original module](https://github.com/axllent/silverstripe-intelligent-404) is no longer actively maintained.
 
-An extension to add additional functionality to the existing 404 ErrorPage.
-If a 404 page is called, it tries to guess the intended page by matching up the
-last segment of the url to all SiteTree pages. It also uses soundex to match similar
-sounding pages to find other alternatives.
+## A link that no longer fits the site tree ends on a plain 404
 
-Other DataObjects (eg: products) can be added too provided they contain a `Link()` function
+Silverstripe redirects an old URL only when it can trace it through a page's own history: a page
+that was renamed or moved. Everything else gets the error page and nothing more: links to a
+previous site's `about-us.php` or `contact.html`, a page that was rebuilt elsewhere in the tree
+instead of moved, a URL that was mistyped or misremembered. The visitor has to find the page
+themselves, and most do not try.
 
-## Requirements
+## Guessing the page the visitor meant
+
+If a 404 error is detected (**note:** does not work in `dev` mode by default):
+
+1. It will search SiteTree for all matching URLSegments, as well as any that sound the same
+(using PHP's [soundex()](http://php.net/manual/en/function.soundex.php)).
+2. If **1 exact** match is found, a 301 redirect is sent.
+3. Else if **no exact** match is found, and **1 similar** page is found, a 301 redirect is sent
+to the similar page.
+4. Else if more than 1 exact or similar page is found, a regular 404 page is shown and the list of
+possible options is shown (ie: "Were you looking for one of the following pages?") directly beneath it.
+5. Else a regular 404 page is shown.
+
+Only the last segment of the requested URL is matched, and a trailing `.asp`, `.aspx`, `.htm`,
+`.html`, `.php`, `.php3` or `.php4` extension is ignored, so `/old-site/about-us.php` finds a page
+with the URL segment `about-us` anywhere in the site tree. Only the `404` ErrorPage is affected;
+other error pages are left alone.
+
+Before this guessing, two things can settle the 404 first: your own
+[resolvers](#resolvers-your-own-404-decisions), which redirect or answer with their own content and
+status (a 410 for a retired product, say), and, when switched on, a 301 to the page whose path only
+differs by case or by characters the URL segment filter changes (`redirect_on_normalised_match`,
+see [Generic options](#generic-options)).
+
+### Only what the visitor may see
+
+A 404 never lists or redirects to a record the current visitor may not view: every match is checked
+with `canView()` for the logged-in member (or for an anonymous visitor). A login-protected page is
+therefore suggested to the members who can open it, and to nobody else. A match that fails the check
+does not count towards the single-match redirect either, so it cannot win over a public soundalike.
+
+Pages hidden from search (**Show in search?** unticked, `ShowInSearch = 0`) are left out as well, by
+default. This applies to every record that has a `ShowInSearch` field, also when only a subclass of
+the configured class declares it.
+
+## Technical
+
+### Requirements and installation
 
 * Silverstripe 5 or 6, with `silverstripe/cms` and `silverstripe/errorpage`
 * PHP 8.1 or newer (Silverstripe 6 itself requires 8.3)
 
-## Installation
-
-```
+```bash
 composer require restruct/silverstripe-intelligent-404
 ```
 
 The extension is applied to `SilverStripe\ErrorPage\ErrorPageController` automatically. Run a
 `dev/build` (Silverstripe 5) or `sake db:build` (Silverstripe 6) with a flush afterwards.
 
-## Version compatibility
+### Version compatibility
 
 | Branch | Module version | Silverstripe | PHP |
 |--------|----------------|--------------|-----|
@@ -44,35 +86,7 @@ targets, so there is no separate maintenance branch.
 
 **`composer.json` is the source of truth** for exact constraints; this table is a quick reference.
 
-## How it works
-If a 404 error is detected (**note:** does not work in `dev` mode by default):
-
-1. It will search SiteTree for all matching URLSegments, as well as any that sound the same
-(using PHP's [soundex()](http://php.net/manual/en/function.soundex.php)).
-2. If **1 exact** match is found, a 301 redirect is sent.
-3. Else if **no exact** match is found, and **1 similar** page is found, a 301 redirect is sent
-to the similar page.
-4. Else if more than 1 exact or similar page is found, a regular 404 page is shown and the list of
-possible options is shown (ie: "Were you looking for one of the following pages?") directly beneath it.
-5. Else a regular 404 page is shown.
-
-Only the last segment of the requested URL is matched, and a trailing `.asp`, `.aspx`, `.htm`,
-`.html`, `.php`, `.php3` or `.php4` extension is ignored, so `/old-site/about-us.php` finds a page
-with the URL segment `about-us` anywhere in the site tree. Only the `404` ErrorPage is affected;
-other error pages are left alone.
-
-### Only what the visitor may see
-
-A 404 never lists or redirects to a record the current visitor may not view: every match is checked
-with `canView()` for the logged-in member (or for an anonymous visitor). A login-protected page is
-therefore suggested to the members who can open it, and to nobody else. A match that fails the check
-does not count towards the single-match redirect either, so it cannot win over a public soundalike.
-
-Pages hidden from search (**Show in search?** unticked, `ShowInSearch = 0`) are left out as well, by
-default. This applies to every record that has a `ShowInSearch` field, also when only a subclass of
-the configured class declares it.
-
-# Configuration
+### Configuration
 
 By default Intelligent-404 will just try match 404 pages with *all pages* in your SiteTree, except for pages with the classnames:
 
@@ -82,7 +96,7 @@ By default Intelligent-404 will just try match 404 pages with *all pages* in you
 
 This means that any page types you add should automatically be included, and can optionally be excluded as well.
 
-## Generic options
+#### Generic options
 By default Intelligent-404 will not work in dev mode (to help you spot issues). You can turn this on by setting `allow_in_dev_mode: true`.
 
 By default the module will also redirect if either 1 exact match or one potential match is found (eg: the page has been recreated elsewhere).
@@ -109,7 +123,7 @@ to `our-teams-results`).
 Silverstripe cannot redirect those itself, because it looks pages up by the percent-encoded segment.
 It is independent of `redirect_on_single_match` and runs before the fuzzy matching.
 
-## Resolvers: your own 404 decisions
+### Resolvers: your own 404 decisions
 
 Before the fuzzy matching, the module asks resolvers what to do with the 404. A resolver is an
 extension on `ErrorPageController` implementing `updateIntelligent404Resolution()`. It gets one
@@ -169,7 +183,7 @@ while the page renders would always end up as 404. The module leaves an `X-Intel
 marker header instead, and `Intelligent404StatusMiddleware` (registered on `Director`) swaps the
 status and removes the marker. It only turns a 404 into another 4xx.
 
-## Adding other DataObjects
+### Adding other DataObjects
 
 It is possible to add other DataObjects to the Intelligent-404 matching (such as a product database), provided that the DataObject has a `Link()` function. To add your own DataObjects, create a yml config (eg: `app/_config/intelligent404.yml`) with the following syntax:
 
@@ -197,16 +211,14 @@ public function canView($member = null)
 }
 ```
 
-## Notes:
-
-### - Class names
+#### Class names
 
 Use the fully qualified class name, without a leading backslash (`App\Model\Product`). A leading
 backslash (`\App\Model\Product`), which earlier versions of this README asked for, is still
 accepted: from `4.1.0` it is stripped before the class is looked up. Before that, such an entry was
 silently skipped unless the class happened to be loaded already.
 
-### Group (`group:`)
+#### Group (`group:`)
 
 By default, all results will get passed on to your template as results of a `$Pages` ArrayList. You can optionally split your
 suggestion results (for instance for different ordering or templating) by adding a `group: <groupname>`
@@ -215,17 +227,17 @@ as in the example above. Then in your template you would do a `<% loop $Products
 If you add your own grouping, please be sure to create your own `templates/Intelligent404Options.ss` to allow for those:
 the bundled template renders `$Pages` only.
 
-### Filter results (`filter:`)
+#### Filter results (`filter:`)
 
 You are able to filter the database field matches, for instance (in the example) products that have a `Stock` greater than `0`.
 
 Please refer to the [Searchfilters documentation](https://docs.silverstripe.org/en/6/developer_guides/model/searchfilters/) for more information.
 
-### Exclude results (`exclude:`)
+#### Exclude results (`exclude:`)
 
 You can also exclude database field matches, for instance (in the example) products that have a `Expired` of `1`.
 
-## Template variables
+### Template variables
 
 When options are shown (step 4 above), the extension sets these on the error page controller:
 
@@ -245,7 +257,7 @@ Style the list through its class `intelligent404-options`. It also keeps its ori
 valid CSS selector (browsers drop the rule, `querySelector` throws), so it can only be reached as
 `ul[class~="404options"]`. Prefer the new class in new CSS and JavaScript.
 
-## Running the tests
+### Running the tests
 
 The module cannot be tested on its own: it needs a host Silverstripe project with `silverstripe/recipe-cms`
 and `silverstripe/recipe-testing`. Require it there through a Composer **path repository with
@@ -265,3 +277,11 @@ SS_PHPUNIT_FLUSH=1 vendor/bin/phpunit vendor/restruct/silverstripe-intelligent-4
 ```
 
 CI runs the same suite against Silverstripe 5 and 6 on every push; see `.github/workflows/ci.yml`.
+
+### Further reading
+
+- [CHANGELOG.md](CHANGELOG.md) - release history
+
+### License
+
+MIT, see [LICENSE](LICENSE).
