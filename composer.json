@@ -1,10 +1,15 @@
 {
     "name": "restruct/silverstripe-intelligent-404",
-    "description": "Add additional smart redirection functionality to the existing 404 ErrorPage",
+    "description": "Send a 404 to the page the visitor meant: matches the missing URL against the site tree, exactly and by sound, then redirects (301) or lists the options on the error page",
     "type": "silverstripe-vendormodule",
     "keywords": [
         "silverstripe",
-        "redirect"
+        "silverstripe-module",
+        "silverstripe-cms",
+        "404",
+        "redirects",
+        "error-page",
+        "seo"
     ],
     "license": "MIT",
     "authors": [
